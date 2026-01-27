@@ -1,0 +1,223 @@
+接口地址：https://topm.tech/api/seller/tiktok.php?action=get_select_category_pro
+接口名称：TIKTOK获取下级类目
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK获取下级类目
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=insert_attr_input
+接口名称：TIKTOK记录属性值，返回属性ID
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK记录属性值，返回属性ID
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=upload_goods_img
+接口名称：TIKTOK上传商品相册图片
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK上传商品相册图片
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=upload_tiktok_img
+接口名称：TIKTOK上传证书文件
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK上传证书文件
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=upload_attrs_img
+接口名称：TIKTOK上传属性图片
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK上传属性图片
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=searchBrand
+接口名称：TIKTOK品牌搜索
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK品牌搜索
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=insert_attr_input
+接口名称：TIKTOK记录属性值，返回属性ID
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK记录属性值，返回属性ID
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=upload_goods_img
+接口名称：TIKTOK上传商品相册图片
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK上传商品相册图片
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=upload_tiktok_img
+接口名称：TIKTOK上传证书文件
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK上传证书文件
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=upload_attrs_img
+接口名称：TIKTOK上传属性图片
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK上传属性图片
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=searchBrand
+接口名称：TIKTOK品牌搜索
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK品牌搜索
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=createBrand
+接口名称：TIKTOK品牌创建
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK品牌创建
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=getAttributeTemplate
+接口名称：TIKTOK获取商品属性模板
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK获取商品属性模板
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=insert
+接口名称：TIKTOK商品新增处理
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK商品新增处理
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
+
+https://topm.tech/api/seller/tiktok.php?action=getAttributeTemplate对应返回的brands下面的id
+7480971507318425345
+goods_desc
+[string]
+是
+商品描述，编辑器录入的数据
+
+https://topm.tech/api/seller/tiktok.php?action=getWarehouseListAPI返回的ID,发货仓库ID。easyswitch为0时，必填
+7459675000947214086
+sku_stock
+[string]
+是
+商品库存。easyswitch为0时，必填
+
+接口地址：https://topm.tech/api/seller/tiktok.php?action=getWarehouseList
+接口名称：TIKTOK获取商品发货仓库模板
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+
+接口名称：TIKTOK获取商品发货仓库模板
+Body 请求参数JSON最外层结构为：Object
+参数名
+类型
+必填
+说明
