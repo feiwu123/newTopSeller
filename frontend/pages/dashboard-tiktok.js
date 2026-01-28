@@ -1,4 +1,4 @@
-import { postAuthedFormData, postAuthedJson } from "../js/apiClient.js";
+﻿import { postAuthedFormData, postAuthedJson } from "../js/apiClient.js";
 import { clearAuth, getAuth } from "../js/auth.js";
 import { buildCategorySelector, ensureImageViewer, ensureJsonString, escapeHtml, extractFirstUrl, formatUnixTimeMaybe, getOrderGoodsUrl, isAlibabaUser, isImageFile, mapAlibabaOrderStatus, mapOrderStatus, mapPayStatus, mapReviewBadge, mapReviewStatusText, mapShippingStatus, mapThirdOrderStatus, normalizeImgUrl, onSaleToggleIcon, openExternalUrl, parseJsonObject, renderCopyBtn, renderGoodsTable, renderGoodsTableInto, renderOrdersTable, renderTemuGoodsTableInto, resolveTopmAssetUrl, routeFromHash, safeExternalUrl, setActiveNav, setOrdersError, setPre, setTableLoading, setupRoutes, showConfirmPopover, showOnlyView, statusBadge, wsStatusBadge } from "./dashboard-shared.js";
 
@@ -53,48 +53,38 @@ export function setupTikTok() {
   const createPre = document.getElementById("tiktok-create-result");
   const selfCheckBtn = document.getElementById("tiktok-selfcheck");
   const selfCheckMsg = document.getElementById("tiktok-selfcheck-msg");
-  const stepCheck1 = document.getElementById("tiktok-step-check-1");
-  const stepCheck2 = document.getElementById("tiktok-step-check-2");
-  const stepCheck3 = document.getElementById("tiktok-step-check-3");
-  const stepCheck4 = document.getElementById("tiktok-step-check-4");
+  const stepBtn1 = document.getElementById("tiktok-step-1-btn");
+  const stepBtn2 = document.getElementById("tiktok-step-2-btn");
+  const stepBtn3 = document.getElementById("tiktok-step-3-btn");
+  const stepBtn4 = document.getElementById("tiktok-step-4-btn");
+  const stepBtn5 = document.getElementById("tiktok-step-5-btn");
+  const stepDot1 = document.getElementById("tiktok-step-1-dot");
+  const stepDot2 = document.getElementById("tiktok-step-2-dot");
+  const stepDot3 = document.getElementById("tiktok-step-3-dot");
+  const stepDot4 = document.getElementById("tiktok-step-4-dot");
+  const stepDot5 = document.getElementById("tiktok-step-5-dot");
+  const stepCheck1 = document.getElementById("tiktok-step-1-check");
+  const stepCheck2 = document.getElementById("tiktok-step-2-check");
+  const stepCheck3 = document.getElementById("tiktok-step-3-check");
+  const stepCheck4 = document.getElementById("tiktok-step-4-check");
+  const stepCheck5 = document.getElementById("tiktok-step-5-check");
+  const stepHint1 = document.getElementById("tiktok-step-1-hint");
+  const stepHint2 = document.getElementById("tiktok-step-2-hint");
+  const stepHint3 = document.getElementById("tiktok-step-3-hint");
+  const stepHint4 = document.getElementById("tiktok-step-4-hint");
+  const stepHint5 = document.getElementById("tiktok-step-5-hint");
   let stepPanels = [];
   let stepNext1 = null;
   let stepNext2 = null;
   let stepNext3 = null;
+  let stepNext4 = null;
   let stepBack2 = null;
   let stepBack3 = null;
   let stepBack4 = null;
+  let stepBack5 = null;
 
-  let tiktokStep = 1;
-
-  const updateTikTokStep = (n) => {
-    tiktokStep = Math.min(Math.max(n, 1), 4);
-    stepPanels.forEach((p, idx) => {
-      if (!p) return;
-      const show = idx + 1 <= tiktokStep;
-      p.classList.toggle("hidden", !show);
-      p.hidden = !show;
-    });
-    const actionGroups = [
-      [stepNext1],
-      [stepBack2, stepNext2],
-      [stepBack3, stepNext3],
-      [stepBack4],
-    ];
-    actionGroups.forEach((group, idx) => {
-      const on = idx + 1 === tiktokStep;
-      group.forEach((btn) => {
-        if (!btn) return;
-        btn.hidden = !on;
-        btn.classList.toggle("hidden", !on);
-      });
-    });
-    const checks = [stepCheck1, stepCheck2, stepCheck3, stepCheck4];
-    checks.forEach((c, idx) => {
-      if (!c) return;
-      c.hidden = idx + 1 > tiktokStep;
-    });
-  };
+  let activeUploadStep = 1;
+  let unlockedUploadStep = 1;
 
   // Build step panels dynamically to mimic TEMU layout without touching HTML markup.
   (() => {
@@ -110,10 +100,17 @@ export function setupTikTok() {
       document.getElementById("tiktok-attr-result")?.closest(".bg-slate-50\\/60") ||
       document.getElementById("tiktok-attr-result")?.closest("div");
     const uploadBlock = document.getElementById("tiktok-upload-goods")?.closest(".space-y-2");
-    const submitBlock = document.getElementById("tiktok-goods-name")?.closest(".space-y-2");
+    const descBlock =
+      document.getElementById("tiktok-desc-block") ||
+      document.getElementById("tiktok-goods-name")?.closest(".space-y-2");
+    const submitBlock =
+      document.getElementById("tiktok-submit-block") ||
+      document.getElementById("tiktok-create")?.closest(".space-y-2");
 
     const oldGrid1 = catBlock?.parentElement;
     const oldGrid2 = uploadBlock?.parentElement;
+    const oldDescWrap = descBlock?.parentElement;
+    const oldSubmitWrap = submitBlock?.parentElement;
 
     const mkStep = (id) => {
       const div = document.createElement("div");
@@ -124,7 +121,8 @@ export function setupTikTok() {
     const step1 = mkStep("tiktok-panel-cat");
     const step2 = mkStep("tiktok-panel-template");
     const step3 = mkStep("tiktok-panel-upload");
-    const step4 = mkStep("tiktok-panel-submit");
+    const step4 = mkStep("tiktok-panel-desc");
+    const step5 = mkStep("tiktok-panel-submit");
 
     if (catBlock) {
       catBlock.classList.add("rounded-2xl", "border", "border-slate-100", "bg-white", "p-4");
@@ -161,29 +159,40 @@ export function setupTikTok() {
       <button id="tiktok-step-next-3" type="button" class="px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent/90">下一步 <i class="fas fa-arrow-right ml-1"></i></button>`;
     step3.appendChild(actions3);
 
+    if (descBlock) {
+      descBlock.classList.add("rounded-2xl", "border", "border-slate-100", "bg-white", "p-4");
+      step4.appendChild(descBlock);
+      const actions4 = document.createElement("div");
+      actions4.className = "flex items-center justify-between";
+      actions4.innerHTML = `
+        <button id="tiktok-step-back-4" type="button" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"><i class="fas fa-arrow-left mr-1"></i> 上一步</button>
+        <button id="tiktok-step-next-4" type="button" class="px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent/90">下一步 <i class="fas fa-arrow-right ml-1"></i></button>`;
+      step4.appendChild(actions4);
+    }
+
     if (submitBlock) {
       submitBlock.classList.add("rounded-2xl", "border", "border-slate-100", "bg-white", "p-4");
-      step4.appendChild(submitBlock);
-      const actions4 = document.createElement("div");
-      actions4.className = "flex items-center justify-start";
-      actions4.innerHTML = `<button id="tiktok-step-back-4" type="button" class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"><i class="fas fa-arrow-left mr-1"></i> 上一步</button>`;
-      step4.appendChild(actions4);
+      step5.appendChild(submitBlock);
     }
 
     // Remove empty grids
     if (oldGrid1 && oldGrid1.children.length === 0) oldGrid1.remove();
     if (oldGrid2 && oldGrid2.children.length === 0) oldGrid2.remove();
+    if (oldDescWrap && oldDescWrap.children.length === 0) oldDescWrap.remove();
+    if (oldSubmitWrap && oldSubmitWrap.children.length === 0) oldSubmitWrap.remove();
 
     // Append steps
     uploadWrap.appendChild(step1);
     uploadWrap.appendChild(step2);
     uploadWrap.appendChild(step3);
     uploadWrap.appendChild(step4);
+    uploadWrap.appendChild(step5);
 
     // Hide panels 2-4 initially
     step2.classList.add("hidden");
     step3.classList.add("hidden");
     step4.classList.add("hidden");
+    step5.classList.add("hidden");
   })();
 
   const syncStepNodes = () => {
@@ -191,14 +200,17 @@ export function setupTikTok() {
       document.getElementById("tiktok-panel-cat"),
       document.getElementById("tiktok-panel-template"),
       document.getElementById("tiktok-panel-upload"),
+      document.getElementById("tiktok-panel-desc"),
       document.getElementById("tiktok-panel-submit"),
     ];
     stepNext1 = document.getElementById("tiktok-step-next-1");
     stepNext2 = document.getElementById("tiktok-step-next-2");
     stepNext3 = document.getElementById("tiktok-step-next-3");
+    stepNext4 = document.getElementById("tiktok-step-next-4");
     stepBack2 = document.getElementById("tiktok-step-back-2");
     stepBack3 = document.getElementById("tiktok-step-back-3");
     stepBack4 = document.getElementById("tiktok-step-back-4");
+    stepBack5 = document.getElementById("tiktok-step-back-5");
   };
   syncStepNodes();
 
@@ -1495,15 +1507,7 @@ export function setupTikTok() {
         const label = names.length ? names.slice(0, 6).join("\\u3001") : "\\u8bc1\\u4e66";
         showUploadMsg(`\\u8bf7\\u5148\\u4e0a\\u4f20\\u8bc1\\u4e66\\uff1a${label}`);
     }
-    // update step dots
-    const setCheck = (el, ok) => {
-      if (!el) return;
-      el.hidden = !ok;
-    };
-    setCheck(stepCheck1, !document.getElementById("tiktok-cat-id-text")?.textContent?.trim() || document.getElementById("tiktok-cat-id-text").textContent.trim() === "-" ? false : true);
-    setCheck(stepCheck2, !issues.some((msg) => msg.includes("属性")));
-    setCheck(stepCheck3, !issues.some((msg) => msg.includes("图片")));
-    setCheck(stepCheck4, issues.length === 0);
+    renderTikTokStepper();
 
     selfCheckMsg.classList.remove("hidden");
     if (!issues.length) {
@@ -1993,6 +1997,7 @@ export function setupTikTok() {
         required: a?.is_requried === true,
         multiple,
         type: String(a?.type ?? ""),
+        is_customizable: a?.is_customizable ?? a?.is_customize ?? a?.isCustomizable,
         values: normalizeTikTokValues(a),
       });
     }
@@ -2108,6 +2113,51 @@ export function setupTikTok() {
     });
   };
 
+  const isDescOk = () => {
+    const name = String(document.getElementById("tiktok-goods-name")?.value ?? "").trim();
+    const brief = String(document.getElementById("tiktok-goods-brief")?.value ?? "").trim();
+    const desc = String(document.getElementById("tiktok-goods-desc")?.value ?? "").trim();
+    return Boolean(name && brief && desc);
+  };
+
+  const setPanelVisible = (el, show) => {
+    if (!el) return;
+    el.hidden = !show;
+    if (show) el.classList.remove("hidden");
+    else el.classList.add("hidden");
+  };
+
+  const setStepActiveStyle = (btn, dot, active) => {
+    if (!btn || !dot) return;
+    if (active) {
+      btn.classList.add("ring-2", "ring-accent/30", "border-accent/40");
+      dot.classList.remove("bg-slate-100", "text-slate-600");
+      dot.classList.add("bg-accent/10", "text-accent");
+    } else {
+      btn.classList.remove("ring-2", "ring-accent/30", "border-accent/40");
+      dot.classList.remove("bg-accent/10", "text-accent");
+      dot.classList.add("bg-slate-100", "text-slate-600");
+    }
+  };
+
+  const setStepEnabled = (btn, enabled) => {
+    if (!btn) return;
+    btn.disabled = !enabled;
+    if (enabled) btn.classList.remove("opacity-50", "cursor-not-allowed");
+    else btn.classList.add("opacity-50", "cursor-not-allowed");
+  };
+
+  const setStepDone = (checkEl, done) => {
+    if (!checkEl) return;
+    if (done) checkEl.classList.remove("hidden");
+    else checkEl.classList.add("hidden");
+  };
+
+  const unlockToStep = (step) => {
+    const s = Number(step) || 1;
+    unlockedUploadStep = Math.max(unlockedUploadStep, s);
+  };
+
   const getTikTokProgress = () => {
     const catOk = isCatSelected();
     const templateOk = String(lastTemplateRes?.code ?? "") === "0" && getTikTokTemplateItems().length > 0;
@@ -2119,20 +2169,93 @@ export function setupTikTok() {
     const missingCerts = getRequiredCertMissing();
     const certsOk = missingCerts.length === 0;
     const imagesOk = parseTikTokImgJson().length > 0;
+    const descOk = isDescOk();
     return {
       done1: catOk,
       done2: attrsOk,
       done3: imagesOk && certsOk,
+      done4: descOk,
+      done5: false,
+      allow2: catOk,
+      allow3: attrsOk,
+      allow4: imagesOk && certsOk,
+      allow5: descOk,
     };
   };
 
-  function renderTikTokStepper(opts = {}) {
+  const renderTikTokStepper = () => {
     const p = getTikTokProgress();
-    if (stepCheck1) stepCheck1.hidden = !p.done1;
-    if (stepCheck2) stepCheck2.hidden = !p.done2;
-    if (stepCheck3) stepCheck3.hidden = !p.done3;
-    if (stepCheck4) stepCheck4.hidden = false;
-  }
+
+    setStepDone(stepCheck1, unlockedUploadStep >= 1);
+    setStepDone(stepCheck2, unlockedUploadStep >= 2);
+    setStepDone(stepCheck3, unlockedUploadStep >= 3);
+    setStepDone(stepCheck4, unlockedUploadStep >= 4);
+    setStepDone(stepCheck5, unlockedUploadStep >= 5);
+
+    if (stepHint1) {
+      const selectedText = String(document.getElementById("tiktok-cat-id-text")?.textContent ?? "").trim();
+      if (!isCatSelected()) stepHint1.textContent = "请选择末级类目";
+      else stepHint1.textContent = selectedText && selectedText !== "-" ? `已选类目：${selectedText}` : "已选类目";
+    }
+    if (stepHint2) stepHint2.textContent = p.done2 ? "模板已填写" : "属性模板与映射";
+    if (stepHint3) stepHint3.textContent = p.done3 ? "图片已上传" : "上传主图/详情图";
+    if (stepHint4) stepHint4.textContent = p.done4 ? "描述已填写" : "填写商品描述";
+    if (stepHint5) stepHint5.textContent = "填写字段并提交";
+
+    setStepEnabled(stepBtn1, true);
+    setStepEnabled(stepBtn2, unlockedUploadStep >= 2);
+    setStepEnabled(stepBtn3, unlockedUploadStep >= 3);
+    setStepEnabled(stepBtn4, unlockedUploadStep >= 4);
+    setStepEnabled(stepBtn5, unlockedUploadStep >= 5);
+
+    if (stepNext1) stepNext1.disabled = !p.allow2;
+    if (stepNext2) stepNext2.disabled = !p.allow3;
+    if (stepNext3) stepNext3.disabled = !p.allow4;
+    if (stepNext4) stepNext4.disabled = !p.allow5;
+  };
+
+  const setUploadStep = (step) => {
+    let s = Number(step);
+    if (!Number.isFinite(s)) s = 1;
+    s = Math.max(1, Math.min(5, Math.floor(s)));
+    activeUploadStep = s;
+
+    stepPanels.forEach((p, idx) => {
+      if (!p) return;
+      const show = idx + 1 <= activeUploadStep;
+      setPanelVisible(p, show);
+    });
+
+    const actionGroups = [
+      [stepNext1],
+      [stepBack2, stepNext2],
+      [stepBack3, stepNext3],
+      [stepBack4, stepNext4],
+      [stepBack5],
+    ];
+    actionGroups.forEach((group, idx) => {
+      const on = idx + 1 === activeUploadStep;
+      group.forEach((btn) => {
+        if (!btn) return;
+        btn.hidden = !on;
+        btn.classList.toggle("hidden", !on);
+      });
+    });
+
+    setStepActiveStyle(stepBtn1, stepDot1, s === 1);
+    setStepActiveStyle(stepBtn2, stepDot2, s === 2);
+    setStepActiveStyle(stepBtn3, stepDot3, s === 3);
+    setStepActiveStyle(stepBtn4, stepDot4, s === 4);
+    setStepActiveStyle(stepBtn5, stepDot5, s === 5);
+
+    renderTikTokStepper();
+  };
+
+  const tryGoStep = (step) => {
+    const target = Number(step) || 1;
+    if (target <= unlockedUploadStep) return setUploadStep(target);
+    renderTikTokStepper();
+  };
 
   if (pendingDraft) {
     applyDraftToForm(pendingDraft);
@@ -2196,6 +2319,9 @@ export function setupTikTok() {
     const renderChoice = (wrap, item, hooks = {}) => {
       const onSelected = hooks.onSelected;
       const onCleared = hooks.onCleared;
+      const useDraft = hooks.useDraft === true;
+      const draft = hooks.draft instanceof Set ? hooks.draft : null;
+      const onDraftChange = hooks.onDraftChange;
       const values = Array.isArray(item.values) ? item.values : [];
       const many = values.length > 36;
       const isMulti = Boolean(item.multiple);
@@ -2210,10 +2336,12 @@ export function setupTikTok() {
         btn.querySelector("i")?.classList.toggle("hidden", !on);
       };
 
-      const getChosen = () =>
-        getSelectedValues(item.id)
+      const getChosen = () => {
+        if (useDraft && draft) return Array.from(draft);
+        return getSelectedValues(item.id)
           .map((entry) => String(entry?.value ?? "").trim())
           .filter(Boolean);
+      };
       const isChosen = (val) => getChosen().includes(val);
 
       const buildGrid = (list) => {
@@ -2231,6 +2359,22 @@ export function setupTikTok() {
             if (btn.dataset.pending === "1") return;
             const val = String(btn.dataset.value ?? "").trim();
             if (!val) return;
+            if (useDraft && draft) {
+              const has = draft.has(val);
+              if (isMulti) {
+                if (has) draft.delete(val);
+                else draft.add(val);
+                setBtnSelected(btn, !has);
+              } else {
+                draft.clear();
+                if (!has) draft.add(val);
+                grid.querySelectorAll("button").forEach((b) =>
+                  setBtnSelected(b, draft.has(String(b.dataset.value ?? "")))
+                );
+              }
+              if (typeof onDraftChange === "function") onDraftChange(val);
+              return;
+            }
             if (isChosen(val)) {
               if (isMulti) {
                 removeAttrSelection(item.id, val);
@@ -2242,39 +2386,15 @@ export function setupTikTok() {
               if (typeof onCleared === "function") onCleared(val);
               return;
             }
-            const goodsId = attrGoodsId?.value?.trim() || "0";
-            btn.dataset.pending = "1";
-            const original = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i>记录中...';
-            try {
-              const res = await postAuthedJson("/api/tiktok/insert_attr_input", {
-                goods_id: goodsId,
-                attr_value: val,
-                type_name: item.name,
-                type_id: item.id,
-              });
-              if (String(res?.code) === "2") {
-                clearAuth();
-                window.location.href = "/login.html";
-                return;
-              }
-              if (String(res?.code) !== "0" || !res?.data?.goods_attr_id) {
-                showTemplateMsg(res?.msg || "属性记录失败");
-                return;
-              }
-              setAttrSelection(item.id, val, res.data.goods_attr_id, { multiple: isMulti });
-              if (isMulti) {
-                setBtnSelected(btn, true);
-              } else {
-                grid.querySelectorAll("button").forEach((b) => setBtnSelected(b, String(b.dataset.value) === val));
-              }
+            if (isMulti) {
+              setAttrSelection(item.id, val, val, { multiple: true, allowLocal: true });
+              setBtnSelected(btn, true);
               if (typeof onSelected === "function") onSelected(val);
-            } catch {
-              showTemplateMsg("网络异常，请稍后重试。");
-            } finally {
-              btn.dataset.pending = "0";
-              btn.innerHTML = original;
+              return;
             }
+            setAttrSelection(item.id, val, val, { multiple: false, allowLocal: true });
+            grid.querySelectorAll("button").forEach((b) => setBtnSelected(b, String(b.dataset.value) === val));
+            if (typeof onSelected === "function") onSelected(val);
           });
           grid.appendChild(btn);
         }
@@ -2367,7 +2487,7 @@ export function setupTikTok() {
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div class="min-w-0">
                 <div class="text-sm font-black text-slate-900" data-attr-modal-title>属性选择</div>
-                <div class="text-[11px] text-slate-400 mt-0.5">点击一个选项完成选择</div>
+                <div class="text-[11px] text-slate-400 mt-0.5" data-attr-modal-subtitle>点击一个选项完成选择</div>
               </div>
               <button type="button" data-attr-modal-close class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200">
                 <i class="fas fa-xmark"></i>
@@ -2394,26 +2514,196 @@ export function setupTikTok() {
     const openAttrModal = (item, hooks = {}) => {
       const modal = ensureAttrModal();
       const title = modal.querySelector("[data-attr-modal-title]");
+      const subtitle = modal.querySelector("[data-attr-modal-subtitle]");
       const body = modal.querySelector("[data-attr-modal-body]");
+      const isMulti = Boolean(item?.multiple);
+      const hasValues = Array.isArray(item?.values) && item.values.length > 0;
+      const allowCustomRaw = item?.is_customizable;
+      const allowCustom =
+        allowCustomRaw === true ||
+        allowCustomRaw === 1 ||
+        allowCustomRaw === "1" ||
+        String(allowCustomRaw ?? "").toLowerCase() === "true";
+      const useDraft = allowCustom && (hasValues || item?.multiple === true || item?.multiple === false);
+      const draft = useDraft
+        ? new Set(
+            getSelectedValues(item?.id)
+              .map((entry) => String(entry?.value ?? "").trim())
+              .filter(Boolean)
+          )
+        : null;
       if (title) title.textContent = item?.name ? String(item.name) : "属性选择";
+      if (subtitle) {
+        subtitle.textContent = useDraft
+          ? `${isMulti ? "多选" : "单选"} ? 选好后点“确认”应用`
+          : "点击一个选项完成选择";
+      }
       const close = () => {
         modal.classList.add("hidden");
         modal.classList.remove("flex");
       };
-      if (body) {
-        body.innerHTML = "";
-        const wrap = document.createElement("div");
-        const isMulti = Boolean(item?.multiple);
-        renderChoice(wrap, item, {
-          onSelected: (val) => {
+
+      const applyDraftSelection = async () => {
+        if (!draft) return true;
+        const chosen = Array.from(draft)
+          .map((v) => String(v ?? "").trim())
+          .filter(Boolean);
+        const current = getSelectedValues(item?.id)
+          .map((entry) => String(entry?.value ?? "").trim())
+          .filter(Boolean);
+        if (!chosen.length) {
+          clearAttrSelection(item?.id);
+          if (typeof hooks.onCleared === "function") hooks.onCleared("");
+          return true;
+        }
+        if (!isMulti) {
+          const val = chosen[0];
+          const bucket = getSelectedBucket(item?.id);
+          const existing = bucket?.values?.find((x) => String(x?.value ?? "").trim() === val);
+          if (existing?.goods_attr_id) {
+            setAttrSelection(item?.id, val, existing.goods_attr_id, { multiple: false });
             if (typeof hooks.onSelected === "function") hooks.onSelected(val);
-            if (!isMulti) close();
-          },
-          onCleared: (val) => {
-            if (typeof hooks.onCleared === "function") hooks.onCleared(val);
-          },
-        });
-        body.appendChild(wrap);
+            return true;
+          }
+          setAttrSelection(item?.id, val, val, { multiple: false, allowLocal: true });
+          if (typeof hooks.onSelected === "function") hooks.onSelected(val);
+          return true;
+        }
+        for (const val of current) {
+          if (!chosen.includes(val)) removeAttrSelection(item?.id, val);
+        }
+        for (const val of chosen) {
+          if (!current.includes(val)) setAttrSelection(item?.id, val, val, { multiple: true, allowLocal: true });
+        }
+        if (typeof hooks.onSelected === "function") hooks.onSelected(chosen[0] || "");
+        return true;
+      };
+
+      if (body) {
+        const renderModalBody = () => {
+          body.innerHTML = "";
+          const wrap = document.createElement("div");
+          const modalHasValues = Array.isArray(item?.values) && item.values.length > 0;
+          const needsInput = !modalHasValues || allowCustom;
+          let leftInfo = null;
+
+          const updateLeftInfo = () => {
+            if (!leftInfo || !draft) return;
+            if (!isMulti) {
+              leftInfo.textContent = draft.size ? "已选择 1 项" : "未选择";
+              return;
+            }
+            leftInfo.textContent = `已选 ${draft.size} 项`;
+          };
+
+          if (modalHasValues) {
+            renderChoice(wrap, item, {
+              useDraft,
+              draft,
+              onDraftChange: () => {
+                updateLeftInfo();
+              },
+              onSelected: (val) => {
+                if (typeof hooks.onSelected === "function") hooks.onSelected(val);
+                if (!isMulti) close();
+              },
+              onCleared: (val) => {
+                if (typeof hooks.onCleared === "function") hooks.onCleared(val);
+              },
+            });
+          }
+          if (needsInput) {
+            const inputWrap = document.createElement("div");
+            inputWrap.className = "mt-3 space-y-2";
+            inputWrap.innerHTML = `
+              <div class="text-xs text-slate-500">自定义属性值</div>
+              <div class="flex items-center gap-2">
+                <input type="text" class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs" placeholder="请输入属性值" />
+                <button type="button" class="px-3 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent/90">添加</button>
+              </div>
+            `;
+            const inputEl = inputWrap.querySelector("input");
+            const addBtn = inputWrap.querySelector("button");
+            const doAdd = () => {
+              const val = String(inputEl?.value ?? "").trim();
+              if (!val) return;
+              if (!Array.isArray(item.values)) item.values = [];
+              const exists = item.values.some((v) => String(v?.name ?? v?.value ?? v?.id ?? "").trim() === val);
+              if (!exists) item.values.push({ name: val, value: val, id: val });
+              if (inputEl) inputEl.value = "";
+              renderModalBody();
+            };
+            if (addBtn) addBtn.addEventListener("click", doAdd);
+            if (inputEl) {
+              inputEl.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  doAdd();
+                }
+              });
+            }
+            wrap.appendChild(inputWrap);
+          }
+
+          if (useDraft) {
+            const footer = document.createElement("div");
+            footer.className = "mt-4 flex items-center justify-between gap-2";
+
+            leftInfo = document.createElement("div");
+            leftInfo.className = "text-[11px] text-slate-400 min-w-0 truncate";
+
+            const actions = document.createElement("div");
+            actions.className = "flex items-center gap-2";
+
+            const clearBtn = document.createElement("button");
+            clearBtn.type = "button";
+            clearBtn.className =
+              "px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50";
+            clearBtn.textContent = "清空";
+
+            const cancelBtn = document.createElement("button");
+            cancelBtn.type = "button";
+            cancelBtn.className =
+              "px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50";
+            cancelBtn.textContent = "取消";
+
+            const confirmBtn = document.createElement("button");
+            confirmBtn.type = "button";
+            confirmBtn.className = "px-3 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent/90";
+            confirmBtn.textContent = "确认";
+
+            actions.appendChild(clearBtn);
+            actions.appendChild(cancelBtn);
+            actions.appendChild(confirmBtn);
+            footer.appendChild(leftInfo);
+            footer.appendChild(actions);
+            wrap.appendChild(footer);
+
+            updateLeftInfo();
+
+            clearBtn.addEventListener("click", () => {
+              draft.clear();
+              renderModalBody();
+            });
+            cancelBtn.addEventListener("click", close);
+            confirmBtn.addEventListener("click", async () => {
+              if (confirmBtn.dataset.pending === "1") return;
+              confirmBtn.dataset.pending = "1";
+              const original = confirmBtn.innerHTML;
+              confirmBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i>处理中';
+              try {
+                const ok = await applyDraftSelection();
+                if (ok) close();
+              } finally {
+                confirmBtn.dataset.pending = "0";
+                confirmBtn.innerHTML = original;
+              }
+            });
+          }
+
+          body.appendChild(wrap);
+        };
+        renderModalBody();
       }
       modal.classList.remove("hidden");
       modal.classList.add("flex");
@@ -2424,6 +2714,14 @@ export function setupTikTok() {
       const isReq = Boolean(item.required);
       const baseReq = "relative overflow-hidden rounded-3xl border-2 border-accent/20 bg-accent/5 p-5 pl-6 hover:border-accent/30 transition-colors";
       const baseOpt = "relative overflow-hidden rounded-3xl border-2 border-slate-100 bg-white p-5 pl-6 hover:border-accent/30 transition-colors";
+      const valuesCount = Array.isArray(item.values) ? item.values.length : 0;
+      const hasValues = valuesCount > 0;
+      const infoText = hasValues ? `候选 ${valuesCount} 个属性值` : "文书填写";
+      const typeLabel = hasValues ? (item.multiple ? "多选属性" : "单选属性") : "文本";
+      const requiredChip = isReq
+        ? '<span class="text-[10px] text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black">必填</span>'
+        : "";
+      const typeChip = `<span class="text-[10px] text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full font-black border">${typeLabel}</span>`;
       card.className = `${isReq ? baseReq : baseOpt} cursor-pointer`;
       card.innerHTML = `
         <button type="button" data-item-toggle="1" class="w-full text-left">
@@ -2435,15 +2733,11 @@ export function setupTikTok() {
             </div>
             <div class="text-[11px] text-slate-400 flex items-center gap-2">
               <i class="fas fa-circle-info"></i>
-              <span>点击卡片选择属性</span>
+              <span>${escapeHtml(infoText)}</span>
             </div>
             <div data-chips="1" class="flex flex-wrap gap-1.5 justify-end">
-              ${
-                isReq
-                  ? '<span class="text-[10px] text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black">必填</span>'
-                  : '<span class="text-[10px] text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-black">选填</span>'
-              }
-              <span class="text-[10px] text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full font-black border">${item.multiple ? "多选" : "单选"}</span>
+              ${requiredChip}
+              ${typeChip}
             </div>
             <div data-result="1" class="mt-2 flex flex-wrap gap-1.5"></div>
           </div>
@@ -2685,12 +2979,6 @@ export function setupTikTok() {
       refreshTemplateEnabled();
       maybeAutoFetchTemplate();
       renderTikTokStepper();
-      const cid = getCatId();
-      if (!cid || cid === "-") {
-        if (tiktokStep !== 1) updateTikTokStep(1);
-      } else if (tiktokStep === 1) {
-        updateTikTokStep(2);
-      }
       queueDraftSave();
     });
     obs.observe(catOut, { childList: true, characterData: true, subtree: true });
@@ -3227,12 +3515,18 @@ export function setupTikTok() {
   }
   if (selfCheckBtn) selfCheckBtn.addEventListener("click", runTikTokSelfCheck);
 
+  if (stepBtn1) stepBtn1.addEventListener("click", () => tryGoStep(1));
+  if (stepBtn2) stepBtn2.addEventListener("click", () => tryGoStep(2));
+  if (stepBtn3) stepBtn3.addEventListener("click", () => tryGoStep(3));
+  if (stepBtn4) stepBtn4.addEventListener("click", () => tryGoStep(4));
+  if (stepBtn5) stepBtn5.addEventListener("click", () => tryGoStep(5));
+
   if (stepNext1) {
     stepNext1.addEventListener("click", async () => {
       const ok = await ensureTemplateReady();
       if (!ok) return;
-      updateTikTokStep(2);
-      renderTikTokStepper();
+      unlockToStep(2);
+      setUploadStep(2);
     });
   }
   if (stepNext2) {
@@ -3254,8 +3548,8 @@ export function setupTikTok() {
         showTemplateMsg(`\u8bf7\u5148\u586b\u5199 SKU \u6838\u5fc3\u5b57\u6bb5\uff1a${label}`);
         return;
       }
-      updateTikTokStep(3);
-      renderTikTokStepper();
+      unlockToStep(3);
+      setUploadStep(3);
     });
   }
   if (stepNext3) {
@@ -3273,24 +3567,35 @@ export function setupTikTok() {
         return;
       }
       showUploadMsg("");
-      updateTikTokStep(4);
-      renderTikTokStepper();
+      unlockToStep(4);
+      setUploadStep(4);
+    });
+  }
+  if (stepNext4) {
+    stepNext4.addEventListener("click", () => {
+      if (!isDescOk()) {
+        if (selfCheckMsg) {
+          selfCheckMsg.className =
+            "mt-2 text-xs px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700";
+          selfCheckMsg.textContent = "请先填写商品标题/简介/详情描述。";
+          selfCheckMsg.classList.remove("hidden");
+        }
+        return;
+      }
+      unlockToStep(5);
+      setUploadStep(5);
     });
   }
   if (stepBack2) stepBack2.addEventListener("click", () => {
-    updateTikTokStep(1);
-    renderTikTokStepper();
+    setUploadStep(1);
   });
   if (stepBack3) stepBack3.addEventListener("click", () => {
-    updateTikTokStep(2);
-    renderTikTokStepper();
+    setUploadStep(2);
   });
   if (stepBack4) stepBack4.addEventListener("click", () => {
-    updateTikTokStep(3);
-    renderTikTokStepper();
+    setUploadStep(3);
   });
-  const initialCid = getCatId();
-  updateTikTokStep(initialCid && initialCid !== "-" ? 2 : 1);
+  setUploadStep(1);
   // Initial UI render
   renderAttrSummary();
   renderTikTokImagePreview();

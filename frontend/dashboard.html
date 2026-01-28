@@ -1636,12 +1636,9 @@
           <div id="tiktok-upload-wrap" class="hidden bg-white rounded-2xl shadow-soft border border-slate-100 p-6 space-y-4">
             <div class="flex items-center justify-between gap-3">
               <div class="flex items-center gap-2 min-w-0">
-                <div class="w-9 h-9 rounded-2xl bg-slate-900/5 text-slate-700 flex items-center justify-center">
-                  <i class="fas fa-cloud-arrow-up"></i>
-                </div>
                 <div class="min-w-0">
                   <h2 class="text-base font-black text-slate-900 truncate">TikTok 商品上传</h2>
-                  <div class="text-xs text-slate-400 mt-0.5">按步骤填写：类目 → 模板属性 → 上传图片 → 提交</div>
+                  <div class="text-xs text-slate-400 mt-0.5">按步骤填写：类目 → 模板属性 → 上传图片 → 商品描述 → 提交</div>
                 </div>
               </div>
               <div class="flex items-center gap-2">
@@ -1669,43 +1666,57 @@
                 <span>步骤导航</span>
                 <span class="text-[11px] text-slate-400 font-medium">完成后即可提交</span>
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                <div class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                <button id="tiktok-step-1-btn" type="button" class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition">
                   <div class="flex items-center gap-3">
-                    <span class="w-7 h-7 rounded-full bg-accent/10 text-accent flex items-center justify-center text-xs font-black">1</span>
+                    <span id="tiktok-step-1-dot" class="w-7 h-7 rounded-full bg-accent/10 text-accent flex items-center justify-center text-xs font-black">1</span>
                     <div class="min-w-0">
                       <div class="text-sm font-semibold text-slate-800">选择类目</div>
-                      <div class="text-[11px] text-slate-400 truncate">末级类目</div>
+                      <div id="tiktok-step-1-hint" class="text-[11px] text-slate-400 truncate">末级类目</div>
                     </div>
+                    <i id="tiktok-step-1-check" class="fas fa-check-circle text-emerald-600 hidden"></i>
                   </div>
-                </div>
-                <div class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                </button>
+                <button id="tiktok-step-2-btn" type="button" class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition">
                   <div class="flex items-center gap-3">
-                    <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">2</span>
+                    <span id="tiktok-step-2-dot" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">2</span>
                     <div class="min-w-0">
                       <div class="text-sm font-semibold text-slate-800">获取模板</div>
-                      <div class="text-[11px] text-slate-400 truncate">属性模板与映射</div>
+                      <div id="tiktok-step-2-hint" class="text-[11px] text-slate-400 truncate">属性模板与映射</div>
                     </div>
+                    <i id="tiktok-step-2-check" class="fas fa-check-circle text-emerald-600 hidden"></i>
                   </div>
-                </div>
-                <div class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                </button>
+                <button id="tiktok-step-3-btn" type="button" class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition">
                   <div class="flex items-center gap-3">
-                    <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">3</span>
+                    <span id="tiktok-step-3-dot" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">3</span>
                     <div class="min-w-0">
                       <div class="text-sm font-semibold text-slate-800">上传图片</div>
-                      <div class="text-[11px] text-slate-400 truncate">主图/详情图</div>
+                      <div id="tiktok-step-3-hint" class="text-[11px] text-slate-400 truncate">主图/详情图</div>
                     </div>
+                    <i id="tiktok-step-3-check" class="fas fa-check-circle text-emerald-600 hidden"></i>
                   </div>
-                </div>
-                <div class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                </button>
+                <button id="tiktok-step-4-btn" type="button" class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition">
                   <div class="flex items-center gap-3">
-                    <span class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">4</span>
+                    <span id="tiktok-step-4-dot" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">4</span>
                     <div class="min-w-0">
-                      <div class="text-sm font-semibold text-slate-800">填写并提交</div>
-                      <div class="text-[11px] text-slate-400 truncate">核心字段完整</div>
+                      <div class="text-sm font-semibold text-slate-800">商品描述</div>
+                      <div id="tiktok-step-4-hint" class="text-[11px] text-slate-400 truncate">标题/详情描述</div>
                     </div>
+                    <i id="tiktok-step-4-check" class="fas fa-check-circle text-emerald-600 hidden"></i>
                   </div>
-                </div>
+                </button>
+                <button id="tiktok-step-5-btn" type="button" class="text-left px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition">
+                  <div class="flex items-center gap-3">
+                    <span id="tiktok-step-5-dot" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">5</span>
+                    <div class="min-w-0">
+                      <div class="text-sm font-semibold text-slate-800">提交信息</div>
+                      <div id="tiktok-step-5-hint" class="text-[11px] text-slate-400 truncate">填写字段并提交</div>
+                    </div>
+                    <i id="tiktok-step-5-check" class="fas fa-check-circle text-emerald-600 hidden"></i>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -1926,62 +1937,63 @@
               </div>
 
               <div class="space-y-2">
-                <div class="flex items-center gap-2 text-xs font-bold text-slate-600">
-                  <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-black">4</span>
-                  <span>新增商品</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input
-                    id="tiktok-goods-name"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="goods_name"
-                  />
-                  <input
-                    id="tiktok-goods-sn"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="goods_sn"
-                  />
-                  <input
-                    id="tiktok-brand-id"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="brandName (brand id)"
-                  />
-                  <input
-                    id="tiktok-unit"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="unit: KILOGRAM/GRAM"
-                    value="KILOGRAM"
-                  />
-                  <input
-                    id="tiktok-length"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="length(cm)"
-                  />
-                  <input
-                    id="tiktok-wide"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="wide(cm)"
-                  />
-                  <input
-                    id="tiktok-high"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="high(cm)"
-                  />
-                  <input
-                    id="tiktok-weight"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="weight"
-                  />
-                  <input
-                    id="tiktok-sku-warehouse-id"
-                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                    placeholder="sku_warehouse_id"
-                  />
-                </div>
-                <div id="tiktok-brand-block" class="relative lg:col-span-2">
-                  <button
-                    id="tiktok-brand-trigger"
-                    type="button"
+                <div id="tiktok-desc-block" class="space-y-2">
+                  <div class="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-black">4</span>
+                    <span>商品描述</span>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      id="tiktok-goods-name"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="goods_name"
+                    />
+                    <input
+                      id="tiktok-goods-sn"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="goods_sn"
+                    />
+                    <input
+                      id="tiktok-brand-id"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="brandName (brand id)"
+                    />
+                    <input
+                      id="tiktok-unit"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="unit: KILOGRAM/GRAM"
+                      value="KILOGRAM"
+                    />
+                    <input
+                      id="tiktok-length"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="length(cm)"
+                    />
+                    <input
+                      id="tiktok-wide"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="wide(cm)"
+                    />
+                    <input
+                      id="tiktok-high"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="high(cm)"
+                    />
+                    <input
+                      id="tiktok-weight"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="weight"
+                    />
+                    <input
+                      id="tiktok-sku-warehouse-id"
+                      class="px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                      placeholder="sku_warehouse_id"
+                    />
+                  </div>
+                  <div id="tiktok-brand-block" class="relative lg:col-span-2">
+                    <button
+                      id="tiktok-brand-trigger"
+                      type="button"
                     class="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-slate-200 bg-white hover:border-accent/40 hover:shadow-sm transition"
                   >
                     <div class="flex items-center gap-3 min-w-0">
@@ -2066,51 +2078,57 @@
                       </div>
                     </div>
                   </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button
-                    id="tiktok-fetch-warehouses"
-                    type="button"
-                    class="text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button
+                      id="tiktok-fetch-warehouses"
+                      type="button"
+                      class="text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+                    >
+                      获取仓库列表
+                    </button>
+                    <span class="text-[11px] text-slate-400">用于选择 sku_warehouse_id</span>
+                  </div>
+                  <select
+                    id="tiktok-warehouse-select"
+                    class="px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
                   >
-                    获取仓库列表
-                  </button>
-                  <span class="text-[11px] text-slate-400">用于选择 sku_warehouse_id</span>
+                    <option value="">选择仓库(可选)</option>
+                  </select>
+                  <pre
+                    id="tiktok-warehouses"
+                    class="text-[11px] bg-slate-50 border border-slate-100 rounded-xl p-3 overflow-auto max-h-48 whitespace-pre-wrap"
+                  ></pre>
+                  <textarea
+                    id="tiktok-goods-brief"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                    rows="2"
+                    placeholder="goods_brief"
+                  ></textarea>
+                  <textarea
+                    id="tiktok-goods-desc"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs"
+                    rows="3"
+                    placeholder="goods_desc (HTML/富文本)"
+                  ></textarea>
+                  <textarea
+                    id="tiktok-attrs-json"
+                    class="hidden"
+                    rows="3"
+                    placeholder="tiktok_product_attributes (JSON 数组)"
+                  ></textarea>
+                  <textarea
+                    id="tiktok-img-json"
+                    class="hidden"
+                    rows="3"
+                    placeholder="goods_img_json (JSON 对象)"
+                  ></textarea>
                 </div>
-                <select
-                  id="tiktok-warehouse-select"
-                  class="px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                >
-                  <option value="">选择仓库(可选)</option>
-                </select>
-                <pre
-                  id="tiktok-warehouses"
-                  class="text-[11px] bg-slate-50 border border-slate-100 rounded-xl p-3 overflow-auto max-h-48 whitespace-pre-wrap"
-                ></pre>
-                <textarea
-                  id="tiktok-goods-brief"
-                  class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                  rows="2"
-                  placeholder="goods_brief"
-                ></textarea>
-                <textarea
-                  id="tiktok-goods-desc"
-                  class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs"
-                  rows="3"
-                  placeholder="goods_desc (HTML/富文本)"
-                ></textarea>
-                <textarea
-                  id="tiktok-attrs-json"
-                  class="hidden"
-                  rows="3"
-                  placeholder="tiktok_product_attributes (JSON 数组)"
-                ></textarea>
-                <textarea
-                  id="tiktok-img-json"
-                  class="hidden"
-                  rows="3"
-                  placeholder="goods_img_json (JSON 对象)"
-                ></textarea>
+                <div id="tiktok-submit-block" class="space-y-2">
+                  <div class="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-black">5</span>
+                    <span>提交信息</span>
+                  </div>
                 <textarea
                   id="tiktok-extra-json"
                   class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono"
@@ -2142,6 +2160,7 @@
                   id="tiktok-create-result"
                   class="text-[11px] bg-slate-50 border border-slate-100 rounded-xl p-3 overflow-auto max-h-48 whitespace-pre-wrap"
                 ></pre>
+                </div>
               </div>
             </div>
           </div>
