@@ -1368,6 +1368,7 @@
                   </div>
                   <div id="shein-template-msg" class="hidden text-xs bg-slate-50 border border-slate-200 text-slate-600 px-3 py-2 rounded-xl"></div>
                   <pre id="shein-template" class="text-[11px] bg-slate-50 border border-slate-100 rounded-xl p-3 overflow-auto max-h-48 whitespace-pre-wrap"></pre>
+                  <div id="shein-template-form" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
                   <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <div>
                       <label class="text-xs text-slate-500">sheinOthers（普通属性 JSON 字符串）</label>
@@ -3188,6 +3189,29 @@
           </div>
         </div>
       </div>
+    <div id="shein-attr-modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center">
+      <div id="shein-attr-modal-overlay" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+      <div class="relative w-full max-w-2xl mx-4 bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+        <div class="flex items-start justify-between gap-3 p-5 border-b border-slate-100">
+          <div class="min-w-0">
+            <div id="shein-attr-modal-title" class="text-base font-bold text-slate-800 truncate">-</div>
+            <div id="shein-attr-modal-subtitle" class="text-xs text-slate-400 mt-0.5 truncate">-</div>
+          </div>
+          <button id="shein-attr-modal-close" type="button" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <i class="fas fa-xmark"></i>
+          </button>
+        </div>
+        <div id="shein-attr-modal-body" class="p-5 space-y-3 max-h-[60vh] overflow-y-auto"></div>
+        <div class="flex items-center justify-between gap-3 p-5 border-t border-slate-100">
+          <button id="shein-attr-modal-clear" type="button" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">&#28165;&#31354;</button>
+          <div class="flex items-center gap-2">
+            <button id="shein-attr-modal-cancel" type="button" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">&#21462;&#28040;</button>
+            <button id="shein-attr-modal-confirm" type="button" class="px-3 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent/90">&#30830;&#35748;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     </div>
 
     <script>

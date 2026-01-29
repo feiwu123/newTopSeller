@@ -67,6 +67,16 @@ export function setupShein() {
   const templateClearBtn = document.getElementById("shein-template-clear");
   const templatePre = document.getElementById("shein-template");
   const templateMsg = document.getElementById("shein-template-msg");
+  const templateForm = document.getElementById("shein-template-form");
+  const attrModal = document.getElementById("shein-attr-modal");
+  const attrModalOverlay = document.getElementById("shein-attr-modal-overlay");
+  const attrModalClose = document.getElementById("shein-attr-modal-close");
+  const attrModalTitle = document.getElementById("shein-attr-modal-title");
+  const attrModalSubtitle = document.getElementById("shein-attr-modal-subtitle");
+  const attrModalBody = document.getElementById("shein-attr-modal-body");
+  const attrModalClear = document.getElementById("shein-attr-modal-clear");
+  const attrModalCancel = document.getElementById("shein-attr-modal-cancel");
+  const attrModalConfirm = document.getElementById("shein-attr-modal-confirm");
   const sheinOthersInput = document.getElementById("shein-others");
   const sheinGoodsAttrInput = document.getElementById("shein-goods-attr");
   const specDefinesInput = document.getElementById("shein-spec-defines");
@@ -102,8 +112,13 @@ export function setupShein() {
   let total = 0;
   let sheinStep = 1;
   let templateRes = null;
+  let lastTemplateCatId = "";
   let lastUploadOk = false;
   let lastSubmitOk = false;
+  let sheinAttrList = [];
+  let sheinAttrByKey = new Map();
+  const sheinAttrSelections = new Map();
+  let activeAttrKey = "";
   const uploadBuckets = {
     "1": [],
     "2": [],
@@ -128,6 +143,11 @@ export function setupShein() {
     return v && v !== "-" ? v : "";
   };
 
+  const getTypeId = () => {
+    const v = String(catOut?.dataset?.catTypeId || "").trim();
+    return v && v !== "-" ? v : "";
+  };
+
   const setTemplateMsg = (msg) => {
     if (!templateMsg) return;
     if (!msg) {
@@ -147,6 +167,188 @@ export function setupShein() {
     } catch {
       return v;
     }
+  };
+
+  const getSheinTemplateAttrs = () => {
+    const data = templateRes?.data || {};
+    const productAttrs = Array.isArray(data?.product_attr_arr) ? data.product_attr_arr : [];
+    const proNumAttrs = Array.isArray(data?.pro_attr_num_arr) ? data.pro_attr_num_arr : [];
+    return [...productAttrs, ...proNumAttrs];
+  };
+
+  const getAttrOptions = (attr) => {
+    const list = Array.isArray(attr?.attribute_value_info_list) ? attr.attribute_value_info_list : [];
+    return list
+      .map((item) => {
+        const label =
+          item?.attribute_value_name ??
+          item?.value_name ??
+          item?.value ??
+          item?.name ??
+          item?.attribute_value ??
+          item?.text ??
+          item?.label ??
+          item?.title ??
+          "";
+        const fallback = item?.attribute_value_id ?? item?.value_id ?? item?.id ?? "";
+        return {
+          label: String(label || fallback || "").trim(),
+        };
+      })
+      .filter((opt) => opt.label);
+  };
+
+  const SHEIN_MODE_LABELS = {
+    "0": "\u6587\u672c",
+    "1": "\u591a\u9009",
+    "3": "\u5355\u9009",
+    "4": "\u81ea\u5b9a\u4e49",
+  };
+
+  const renderSheinTemplateForm = () => {
+    if (!templateForm) return;
+    templateForm.className = "grid grid-flow-row-dense gap-6 w-full";
+    templateForm.style.gridTemplateColumns = "repeat(auto-fit, minmax(260px, 1fr))";
+    templateForm.innerHTML = "";
+    const rawAttrs = getSheinTemplateAttrs();
+    if (!rawAttrs.length) {
+      templateForm.innerHTML = '<div class="text-xs text-slate-400">\u6682\u65e0\u57fa\u672c\u5c5e\u6027\u6a21\u677f</div>';
+      return;
+    }
+
+    sheinAttrList = rawAttrs.map((attr, idx) => {
+      const rawId = attr?.attribute_id ?? attr?.attributeId ?? attr?.id ?? "";
+      const key = `attr-${rawId || idx}`;
+      const name = String(attr?.attribute_name ?? attr?.name ?? attr?.title ?? `\u5c5e\u6027 ${idx + 1}`).trim();
+      const mode = String(attr?.attribute_mode ?? "").trim();
+      const options = mode === "1" || mode === "3" ? getAttrOptions(attr) : [];
+      return { key, id: String(rawId || "").trim(), name, mode, options, raw: attr };
+    });
+    sheinAttrByKey = new Map(sheinAttrList.map((item) => [item.key, item]));
+
+    const cardHtml = sheinAttrList
+      .map((attr) => {
+        const modeLabel = SHEIN_MODE_LABELS[attr.mode] || "\u5176\u4ed6";
+        const optionCount = attr.options.length;
+        const badge = attr.mode === "1" || attr.mode === "3" ? `\u5019\u9009 ${optionCount} \u4e2a` : "";
+        const sel = sheinAttrSelections.get(attr.key);
+        const hasText = sel?.value && String(sel.value).trim();
+        const hasValues = Array.isArray(sel?.values) && sel.values.length;
+        const selectedHtml = hasValues
+          ? `<div class="flex flex-wrap gap-2">${sel.values
+              .map(
+                (v) =>
+                  `<span class="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-[11px] text-slate-600">${escapeHtml(
+                    String(v),
+                  )}</span>`,
+              )
+              .join("")}</div>`
+          : hasText
+            ? `<div class="text-xs text-slate-700 break-words">${escapeHtml(String(sel.value))}</div>`
+            : '<div class="text-xs text-slate-400">\u70b9\u51fb\u9009\u62e9/\u586b\u5199</div>';
+        const selectedCls = hasValues || hasText ? "attr-card-done" : "";
+        const baseCls =
+          "relative overflow-hidden rounded-3xl border-2 border-slate-100 bg-white p-5 pl-6 text-left w-full hover:border-accent/30 transition-colors";
+
+        return `
+          <button type="button" data-attr-card="1" data-attr-key="${escapeHtml(
+            attr.key,
+          )}" class="${baseCls} ${selectedCls}">
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-xs font-bold text-slate-700">${escapeHtml(attr.name)}</div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">${escapeHtml(
+                  modeLabel,
+                )}</span>
+                ${badge ? `<span class="text-[11px] text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">${badge}</span>` : ""}
+              </div>
+            </div>
+            ${selectedHtml}
+          </button>
+        `;
+      })
+      .join("");
+
+    templateForm.innerHTML = cardHtml;
+  };
+
+
+
+  const openAttrModal = (attr) => {
+    if (!attrModal || !attrModalBody) return;
+    activeAttrKey = attr?.key || "";
+    const modeLabel = SHEIN_MODE_LABELS[attr?.mode] || "\u5176\u4ed6";
+    const optionCount = attr?.options?.length || 0;
+    const subtitle =
+      attr?.mode === "1" || attr?.mode === "3" ? `${modeLabel} \u00b7 \u5019\u9009 ${optionCount} \u4e2a` : modeLabel;
+    if (attrModalTitle) attrModalTitle.textContent = attr?.name || "-";
+    if (attrModalSubtitle) attrModalSubtitle.textContent = subtitle;
+
+    const sel = sheinAttrSelections.get(activeAttrKey);
+    if (attr?.mode === "0" || attr?.mode === "4") {
+      const value = sel?.value ?? "";
+      attrModalBody.innerHTML = `
+        <div class="space-y-2">
+          <div class="text-[11px] text-slate-500">\u8bf7\u8f93\u5165${escapeHtml(modeLabel)}\u503c</div>
+          <input id="shein-attr-input" type="text" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" value="${escapeHtml(
+            String(value),
+          )}" placeholder="\u8bf7\u8f93\u5165${escapeHtml(modeLabel)}\u503c" />
+        </div>
+      `;
+    } else {
+      const options = Array.isArray(attr?.options) ? attr.options : [];
+      if (!options.length) {
+        attrModalBody.innerHTML = '<div class="text-xs text-slate-400">\u6682\u65e0\u5019\u9009\u9879</div>';
+      } else {
+        const inputType = attr.mode === "1" ? "checkbox" : "radio";
+        const name = `shein-attr-${attr.key}`;
+        const selected = new Set(Array.isArray(sel?.values) ? sel.values : []);
+        attrModalBody.innerHTML = `
+          <div class="space-y-2">
+            ${options
+              .map((opt, idx) => {
+                const label = String(opt?.label ?? "");
+                const checked = selected.has(label) ? "checked" : "";
+                return `
+                  <label class="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-700 hover:border-accent/40">
+                    <input type="${inputType}" name="${escapeHtml(name)}" value="${escapeHtml(label)}" ${checked} />
+                    <span class="flex-1 break-words">${escapeHtml(label || `\u9009\u9879 ${idx + 1}`)}</span>
+                  </label>
+                `;
+              })
+              .join("")}
+          </div>
+        `;
+      }
+    }
+
+    attrModalBody.scrollTop = 0;
+    attrModal.classList.remove("hidden");
+  };
+
+
+  const closeAttrModal = () => {
+    if (!attrModal) return;
+    attrModal.classList.add("hidden");
+    activeAttrKey = "";
+  };
+
+  const commitAttrModal = () => {
+    const attr = sheinAttrByKey.get(activeAttrKey);
+    if (!attr || !attrModalBody) return;
+    if (attr.mode === "0" || attr.mode === "4") {
+      const input = attrModalBody.querySelector("#shein-attr-input");
+      const val = String(input?.value || "").trim();
+      if (val) sheinAttrSelections.set(attr.key, { mode: attr.mode, value: val });
+      else sheinAttrSelections.delete(attr.key);
+    } else {
+      const inputs = Array.from(attrModalBody.querySelectorAll('input[type="checkbox"], input[type="radio"]'));
+      const values = inputs.filter((el) => el.checked).map((el) => String(el.value));
+      if (values.length) sheinAttrSelections.set(attr.key, { mode: attr.mode, values });
+      else sheinAttrSelections.delete(attr.key);
+    }
+    closeAttrModal();
+    renderSheinTemplateForm();
   };
 
   const renderRows = (list) => {
@@ -364,9 +566,14 @@ export function setupShein() {
 
   const resetUpload = () => {
     templateRes = null;
+    lastTemplateCatId = "";
     lastUploadOk = false;
     lastSubmitOk = false;
+    sheinAttrSelections.clear();
+    sheinAttrList = [];
+    sheinAttrByKey = new Map();
     if (templatePre) setPre(templatePre, "");
+    if (templateForm) templateForm.innerHTML = "";
     if (uploadPre) setPre(uploadPre, "");
     if (createPre) setPre(createPre, "");
     if (sheinOthersInput) sheinOthersInput.value = "";
@@ -520,11 +727,23 @@ export function setupShein() {
   if (catOut) {
     const observer = new MutationObserver(() => {
       const catId = getCatId();
-      if (catOutText) catOutText.textContent = catId || "-";
-      if (stepHint1) stepHint1.textContent = catId ? `已选类目 ${catId}` : "请选择叶子类目";
+      const typeId = getTypeId();
+      const pathText = String(catOut?.dataset?.catPathText || "").trim();
+      const label = pathText || catId;
+      if (catOutText) catOutText.textContent = label || "-";
+      if (stepHint1) stepHint1.textContent = label ? `已选类目 ${label}` : "请选择叶子类目";
       if (catId && stepDot1) {
         stepDot1.classList.remove("bg-accent/10", "text-accent");
         stepDot1.classList.add("bg-emerald-100", "text-emerald-700");
+      }
+      const nextTypeId = typeId || catId;
+      if (nextTypeId && nextTypeId !== lastTemplateCatId) {
+        templateRes = null;
+        sheinAttrSelections.clear();
+        sheinAttrList = [];
+        sheinAttrByKey = new Map();
+        if (templateForm) templateForm.innerHTML = "";
+        fetchTemplate(nextTypeId, { silent: false });
       }
       updateStepChecks();
     });
@@ -533,6 +752,30 @@ export function setupShein() {
     } catch {
       // ignore
     }
+  }
+
+  if (templateForm && !templateForm.dataset.bound) {
+    templateForm.dataset.bound = "1";
+    templateForm.addEventListener("click", (e) => {
+      const card = e.target?.closest?.("[data-attr-card]");
+      if (!card) return;
+      const key = String(card.dataset.attrKey || "").trim();
+      const attr = sheinAttrByKey.get(key);
+      if (!attr) return;
+      openAttrModal(attr);
+    });
+  }
+
+  if (attrModalOverlay) attrModalOverlay.addEventListener("click", closeAttrModal);
+  if (attrModalClose) attrModalClose.addEventListener("click", closeAttrModal);
+  if (attrModalCancel) attrModalCancel.addEventListener("click", closeAttrModal);
+  if (attrModalConfirm) attrModalConfirm.addEventListener("click", commitAttrModal);
+  if (attrModalClear) {
+    attrModalClear.addEventListener("click", () => {
+      if (activeAttrKey) sheinAttrSelections.delete(activeAttrKey);
+      closeAttrModal();
+      renderSheinTemplateForm();
+    });
   }
 
   if (stepBtn1) stepBtn1.addEventListener("click", () => setStep(1));
@@ -552,42 +795,61 @@ export function setupShein() {
   if (next3) next3.addEventListener("click", () => setStep(4));
   if (back4) back4.addEventListener("click", () => setStep(3));
 
+  async function fetchTemplate(typeId, opts = {}) {
+    const tid = String(typeId ?? "").trim();
+    if (!tid) return;
+    const silent = opts?.silent === true;
+    if (templateBtn) templateBtn.disabled = true;
+    if (!silent) setTemplateMsg("加载中...");
+    setPre(templatePre, "");
+    sheinAttrSelections.clear();
+    sheinAttrList = [];
+    sheinAttrByKey = new Map();
+    if (templateForm) templateForm.innerHTML = '<div class=\"text-xs text-slate-400\">\u52a0\u8f7d\u4e2d...</div>';
+    try {
+      const res = await postAuthedJson("/api/shein/getAttributeTemplate", { goods_id: "0", type_id: tid });
+      if (String(res?.code) === "2") {
+        clearAuth();
+        window.location.href = "/login.html";
+        return;
+      }
+      if (String(res?.code) !== "0") {
+        if (!silent) setTemplateMsg(res?.msg || "获取失败");
+        return;
+      }
+      templateRes = res;
+      lastTemplateCatId = tid;
+      if (!silent) setTemplateMsg("获取成功");
+      setPre(templatePre, res);
+      renderSheinTemplateForm();
+    } catch {
+      if (!silent) setTemplateMsg("网络异常");
+    } finally {
+      if (templateBtn) templateBtn.disabled = false;
+      updateStepChecks();
+    }
+  }
+
   if (templateBtn) {
     templateBtn.addEventListener("click", async () => {
       const catId = getCatId();
+      const typeId = getTypeId() || catId;
       if (!catId) {
         setTemplateMsg("请先选择类目");
         return;
       }
-      templateBtn.disabled = true;
-      setTemplateMsg("加载中...");
-      setPre(templatePre, "");
-      try {
-        const res = await postAuthedJson("/api/shein/getAttributeTemplate", { goods_id: "0", cat_id: catId });
-        if (String(res?.code) === "2") {
-          clearAuth();
-          window.location.href = "/login.html";
-          return;
-        }
-        if (String(res?.code) !== "0") {
-          setTemplateMsg(res?.msg || "获取失败");
-          return;
-        }
-        templateRes = res;
-        setTemplateMsg("获取成功");
-        setPre(templatePre, res);
-      } catch {
-        setTemplateMsg("网络异常");
-      } finally {
-        templateBtn.disabled = false;
-        updateStepChecks();
-      }
+      await fetchTemplate(typeId);
     });
   }
   if (templateClearBtn) {
     templateClearBtn.addEventListener("click", () => {
       templateRes = null;
+      lastTemplateCatId = "";
+      sheinAttrSelections.clear();
+      sheinAttrList = [];
+      sheinAttrByKey = new Map();
       if (templatePre) setPre(templatePre, "");
+      if (templateForm) templateForm.innerHTML = "";
       setTemplateMsg("");
       updateStepChecks();
     });

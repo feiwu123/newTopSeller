@@ -695,8 +695,9 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
       const pathParts = Array.isArray(initialState?.pathParts)
         ? initialState.pathParts.map((x) => String(x ?? "").trim()).filter(Boolean)
         : [];
-      if (!ids.length && !leafId && !pathText && !pathParts.length) return null;
-      return { ids, leafId, pathText, pathParts };
+      const typeId = String(initialState?.typeId ?? "").trim();
+      if (!ids.length && !leafId && !pathText && !pathParts.length && !typeId) return null;
+      return { ids, leafId, pathText, pathParts, typeId };
     }
     if (!restoreEnabled) return null;
     try {
@@ -707,8 +708,9 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
       const leafId = String(parsed?.leafId ?? "").trim();
       const pathText = String(parsed?.pathText ?? "").trim();
       const pathParts = Array.isArray(parsed?.pathParts) ? parsed.pathParts.map((x) => String(x ?? "").trim()).filter(Boolean) : [];
-      if (!ids.length && !leafId && !pathText && !pathParts.length) return null;
-      return { ids: ids.length ? ids : [], leafId, pathText, pathParts };
+      const typeId = String(parsed?.typeId ?? "").trim();
+      if (!ids.length && !leafId && !pathText && !pathParts.length && !typeId) return null;
+      return { ids: ids.length ? ids : [], leafId, pathText, pathParts, typeId };
     } catch {
       return null;
     }
@@ -721,6 +723,7 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
       if (extra?.pathParts) out.dataset.catPathParts = JSON.stringify(extra.pathParts);
       if (extra?.pathText != null) out.dataset.catPathText = String(extra.pathText ?? "");
       if (extra?.leafId != null) out.dataset.catLeafId = String(extra.leafId ?? "");
+      if (extra?.typeId != null) out.dataset.catTypeId = String(extra.typeId ?? "");
     } catch {
       // ignore
     }
@@ -737,8 +740,9 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
       const leafId = String(extra?.leafId ?? "").trim();
       const pathText = String(extra?.pathText ?? "").trim();
       const pathParts = Array.isArray(extra?.pathParts) ? extra.pathParts : [];
+      const typeId = String(extra?.typeId ?? "").trim();
 
-      if (!ids.length && !leafId && !pathText && !pathParts.length) {
+      if (!ids.length && !leafId && !pathText && !pathParts.length && !typeId) {
         window.localStorage.removeItem(storageKey);
         return;
       }
@@ -749,6 +753,7 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
           leafId: leafId || undefined,
           pathText: pathText || undefined,
           pathParts: (pathParts && pathParts.length ? pathParts : undefined) || undefined,
+          typeId: typeId || undefined,
         })
       );
     } catch {
@@ -788,6 +793,7 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
   const saved = loadSavedState();
   if (saved?.leafId) out.textContent = saved.leafId;
   if (outText) outText.textContent = saved?.pathText || "-";
+  if (saved?.typeId) out.dataset.catTypeId = String(saved.typeId ?? "");
   if (saved?.pathParts?.length) setPath(saved.pathParts);
 
   async function fetchLevel(parentCatId) {
@@ -994,6 +1000,13 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
       setActiveButton(levelEl, value);
       const current = levels[level].options.find((o) => String(o.cat_id) === String(value));
       if (!current) return;
+      const typeId = String(
+        current?.product_type_id ??
+          current?.productTypeId ??
+          current?.type_id ??
+          current?.typeId ??
+          ""
+      ).trim();
 
       const nextPath = selectedPath.slice(0, level);
       nextPath.push(String(current?.cat_name ?? current?.cat_id ?? value));
@@ -1001,12 +1014,12 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
 
       selectedIds.length = level;
       selectedIds.push(String(current?.cat_id ?? value));
-      saveSelection({ pathParts: nextPath, pathText: nextPath.join(" > ") });
+      saveSelection({ pathParts: nextPath, pathText: nextPath.join(" > "), typeId });
 
       if (String(current.is_leaf) === "1") {
         out.textContent = String(current.cat_id);
         if (outText) outText.textContent = nextPath.join(" > ");
-        saveSelection({ leafId: String(current.cat_id), pathParts: nextPath, pathText: nextPath.join(" > ") });
+        saveSelection({ leafId: String(current.cat_id), pathParts: nextPath, pathText: nextPath.join(" > "), typeId });
         // Leaf chosen: hide option lists until user clicks a breadcrumb segment.
         setLevelCollapsed(levelEl, true, String(current?.cat_name ?? current?.cat_id ?? value));
         setActiveButton(levelEl, current.cat_id);
@@ -1027,6 +1040,15 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
       }
       if (seq !== pendingSeq) return;
       removeLoading();
+      if (Array.isArray(nextOptions) && nextOptions.length === 0) {
+        out.textContent = String(current.cat_id);
+        if (outText) outText.textContent = nextPath.join(" > ");
+        saveSelection({ leafId: String(current.cat_id), pathParts: nextPath, pathText: nextPath.join(" > "), typeId });
+        setLevelCollapsed(levelEl, true, String(current?.cat_name ?? current?.cat_id ?? value));
+        setActiveButton(levelEl, current.cat_id);
+        showOnlyLevel(null);
+        return;
+      }
       if (!nextOptions) {
         showLoadError("下级类目加载失败，请重试");
         return;
