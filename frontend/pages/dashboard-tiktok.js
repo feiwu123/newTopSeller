@@ -22,6 +22,21 @@ export function setupTikTok() {
   const imagePreview = document.getElementById("tiktok-image-preview");
   const salesAttrBlock = document.getElementById("tiktok-sales-attr-block");
   const salesAttrFileInput = document.getElementById("tiktok-sales-attr-file");
+  const salesAttrNamesEl = document.getElementById("tiktok-sales-attr-names");
+  const salesAttrMsg = document.getElementById("tiktok-sales-attr-msg");
+  const salesAttrCustomInput = document.getElementById("tiktok-sales-attr-custom");
+  const salesAttrCustomAdd = document.getElementById("tiktok-sales-attr-custom-add");
+  const salesAttrValuesEl = document.getElementById("tiktok-sales-attr-values");
+  const skuGridEl = document.getElementById("tiktok-sku-grid");
+  const skuModal = document.getElementById("tiktok-sku-modal");
+  const skuModalOverlay = document.getElementById("tiktok-sku-modal-overlay");
+  const skuModalClose = document.getElementById("tiktok-sku-modal-close");
+  const skuModalTitle = document.getElementById("tiktok-sku-modal-title");
+  const skuModalSubtitle = document.getElementById("tiktok-sku-modal-subtitle");
+  const skuModalStatus = document.getElementById("tiktok-sku-modal-status");
+  const skuModalImages = document.getElementById("tiktok-sku-modal-images");
+  const skuModalUpload = document.getElementById("tiktok-sku-modal-upload");
+  const skuModalFile = document.getElementById("tiktok-sku-modal-file");
   const imageViewer = ensureImageViewer();
   const certificationsBlock = document.getElementById("tiktok-certifications-block");
   const certFileInput = document.getElementById("tiktok-cert-file");
@@ -432,6 +447,7 @@ export function setupTikTok() {
   const MAX_CERT_IMAGES = 10;
   const MAX_SALES_ATTR_IMAGES = 3;
   const MAX_TIKTOK_IMAGES = 9;
+  const MAX_SALES_ATTR_NAMES = 3;
   const NOM_CERT_ID = "nom_mark_images";
   const NOM_CERT_ENTRY = {
     id: NOM_CERT_ID,
@@ -444,6 +460,9 @@ export function setupTikTok() {
   let salesAttrEnabled = false;
   let salesAttrRows = [];
   let salesAttrUploadInFlight = false;
+  const salesAttrSelections = new Map();
+  const skuDraft = new Map();
+  let activeSkuKey = "";
   let lastCertifications = [];
   const certificationUploads = new Map(); // certId -> [uploadData]
   let certUploadInFlight = false;
@@ -2034,7 +2053,356 @@ export function setupTikTok() {
       })
       .filter((s) => s && s.id);
   };
-;
+
+  const normalizeSalesAttrName = (val) => String(val ?? "").trim();
+
+  const setSalesAttrNameMsg = (text, tone = "info") => {
+    if (!salesAttrMsg) return;
+    salesAttrMsg.textContent = text || "";
+    const base = "text-[11px]";
+    if (tone === "error") {
+      salesAttrMsg.className = `${base} text-rose-600`;
+    } else if (tone === "ok") {
+      salesAttrMsg.className = `${base} text-emerald-600`;
+    } else {
+      salesAttrMsg.className = `${base} text-slate-400`;
+    }
+  };
+
+  const clearSalesAttrSelections = () => {
+    salesAttrSelections.clear();
+    skuDraft.clear();
+    activeSkuKey = "";
+    renderTikTokSalesAttrs();
+    renderTikTokSalesAttrValues();
+    renderTikTokSkuGrid();
+  };
+
+  const renderTikTokSalesAttrs = () => {
+    if (!salesAttrNamesEl) return;
+    const items = getTikTokSalesItems().slice().sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
+    const selectedIds = new Set(Array.from(salesAttrSelections.keys()));
+    const customItems = Array.from(salesAttrSelections.values()).filter((it) => it && it.custom);
+
+    if (!items.length && !customItems.length) {
+      salesAttrNamesEl.innerHTML = '<span class="text-[11px] text-slate-400">暂无销售属性</span>';
+      setSalesAttrNameMsg("未返回销售属性，可手动添加自定义名称。", "info");
+      return;
+    }
+
+    const btns = items.map((item) => {
+      const active = selectedIds.has(item.id);
+      const cls = active
+        ? "border-accent bg-accent/10 text-accent"
+        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50";
+      return `<button type="button" data-sales-spec-id="${escapeHtml(item.id)}" class="px-3 py-1.5 rounded-full text-xs font-semibold border ${cls}">${escapeHtml(
+        item.name
+      )}</button>`;
+    });
+
+    const customBtns = customItems.map((item) => {
+      const label = `${item.name}（自定义）`;
+      return `<button type="button" data-sales-spec-id="${escapeHtml(
+        item.id
+      )}" class="px-3 py-1.5 rounded-full text-xs font-semibold border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">${escapeHtml(
+        label
+      )}</button>`;
+    });
+
+    salesAttrNamesEl.innerHTML = [...btns, ...customBtns].join("");
+
+    const count = salesAttrSelections.size;
+    if (count === 0) {
+      setSalesAttrNameMsg(`请选择销售属性名称（最多 ${MAX_SALES_ATTR_NAMES} 个）。`, "info");
+    } else if (count >= MAX_SALES_ATTR_NAMES) {
+      setSalesAttrNameMsg(`已选择 ${count} 个销售属性名称（最多 ${MAX_SALES_ATTR_NAMES} 个）。`, "ok");
+    } else {
+      setSalesAttrNameMsg(`已选择 ${count} 个销售属性名称，可再选择 ${MAX_SALES_ATTR_NAMES - count} 个。`, "info");
+    }
+  };
+
+  const renderTikTokSalesAttrValues = () => {
+    if (!salesAttrValuesEl) return;
+    const selections = Array.from(salesAttrSelections.values());
+    if (!selections.length) {
+      salesAttrValuesEl.innerHTML = '<div class="text-[11px] text-slate-400">先选择销售属性名称，再添加属性值。</div>';
+      return;
+    }
+    salesAttrValuesEl.innerHTML = selections
+      .map((sel) => {
+        const values = Array.isArray(sel.values) ? sel.values : [];
+        const chips = values
+          .map(
+            (v) => `
+              <span class="inline-flex items-center gap-2 text-[11px] bg-slate-100 border border-slate-200 text-slate-600 px-2 py-1 rounded-full">
+                <span>${escapeHtml(v.value)}</span>
+                <button type="button" data-sales-value-remove="${escapeHtml(sel.id)}" data-sales-value-id="${escapeHtml(
+              v.goods_attr_id
+            )}" class="text-rose-600 hover:text-rose-700">
+                  <i class="fas fa-xmark"></i>
+                </button>
+              </span>
+            `
+          )
+          .join("");
+        return `
+          <div class="bg-white border border-slate-100 rounded-2xl p-4 space-y-3" data-sales-block="${escapeHtml(sel.id)}">
+            <div class="flex items-center justify-between">
+              <div class="text-xs font-bold text-slate-700">${escapeHtml(sel.name)}</div>
+              <div class="text-[11px] text-slate-400">已添加 ${values.length} 个</div>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input data-sales-value-input="${escapeHtml(sel.id)}" class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" placeholder="填写属性值" />
+              <button type="button" data-sales-value-add="${escapeHtml(
+                sel.id
+              )}" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800">添加</button>
+            </div>
+            <div class="flex flex-wrap gap-2">${chips || '<span class="text-[11px] text-slate-400">未添加值</span>'}</div>
+          </div>
+        `;
+      })
+      .join("");
+  };
+
+  const getTikTokSalesCombos = () => {
+    const selections = Array.from(salesAttrSelections.values());
+    if (!selections.length) return [];
+    const lists = selections.map((sel) =>
+      (Array.isArray(sel.values) ? sel.values : []).map((v) => ({
+        specId: sel.id,
+        specName: sel.name,
+        value: v.value,
+        goods_attr_id: String(v.goods_attr_id ?? "").trim(),
+      }))
+    );
+    if (lists.some((l) => l.length === 0)) return [];
+    return lists.reduce((acc, list) => acc.flatMap((prev) => list.map((cur) => prev.concat([cur]))), [[]]);
+  };
+
+  const normalizeGoodsAttrKey = (raw) => {
+    const list = String(raw ?? "")
+      .split(",")
+      .map((x) => String(x ?? "").trim())
+      .filter(Boolean);
+    if (!list.length) return "";
+    return Array.from(new Set(list)).sort().join(",");
+  };
+
+  const isSkuComplete = (row) => {
+    if (!row) return false;
+    const required = ["product_sn", "product_number", "product_price", "weight", "width", "height", "length"];
+    if (required.some((k) => !String(row?.[k] ?? "").trim())) return false;
+    const images = Array.isArray(row.attr_img_list) ? row.attr_img_list : [];
+    return images.length > 0;
+  };
+
+  const renderTikTokSkuGrid = () => {
+    if (!skuGridEl) return;
+    const combos = getTikTokSalesCombos();
+    if (!salesAttrSelections.size) {
+      skuGridEl.innerHTML = '<div class="text-[11px] text-slate-400">请选择销售属性名称。</div>';
+      renderTikTokStepper();
+      return;
+    }
+    if (!combos.length) {
+      skuGridEl.innerHTML = '<div class="text-[11px] text-slate-400">请为已选属性添加值，自动生成组合。</div>';
+      renderTikTokStepper();
+      return;
+    }
+
+    skuGridEl.innerHTML = combos
+      .map((combo) => {
+        const goodsAttrs = normalizeGoodsAttrKey(combo.map((x) => x.goods_attr_id).join(","));
+        const label = combo.map((x) => `${x.specName}: ${x.value}`).join(" / ");
+        if (!skuDraft.has(goodsAttrs)) {
+          skuDraft.set(goodsAttrs, {
+            sku_identifier_type: "GTIN",
+            sku_identifier_code: "",
+            product_sn: "",
+            product_number: "",
+            product_price: "",
+            weight: "",
+            width: "",
+            height: "",
+            length: "",
+            attr_img_list: [],
+          });
+        }
+        const row = skuDraft.get(goodsAttrs);
+        const complete = isSkuComplete(row);
+        const badge = complete
+          ? '<span class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-black">已完成</span>'
+          : '<span class="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-black">未完成</span>';
+        return `
+          <button type="button" data-sku-edit="${escapeHtml(goodsAttrs)}" data-sku-label="${escapeHtml(
+          label
+        )}" class="w-full text-left border border-slate-100 rounded-2xl p-4 bg-white shadow-soft flex items-center justify-between gap-3 hover:border-accent/40 hover:shadow-glow transition">
+            <div class="min-w-0">
+              <div class="text-xs font-semibold text-slate-700 truncate">${escapeHtml(label)}</div>
+              <div class="text-[11px] text-slate-500 mt-1">排列组合</div>
+            </div>
+            <div class="flex items-center gap-2">
+              ${badge}
+            </div>
+          </button>
+        `;
+      })
+      .join("");
+    renderTikTokStepper();
+  };
+
+  const pickTikTokImageUrls = (data) => {
+    const urls = [];
+    const push = (u) => {
+      const s = String(u ?? "").trim();
+      if (s) urls.push(s);
+    };
+    const d = data ?? {};
+    push(d.url);
+    push(d.uri);
+    push(d.img_url);
+    push(d.imgUrl);
+    push(d.file_path);
+    push(d.filePath);
+    push(d.full_url);
+    if (Array.isArray(d.images)) d.images.forEach((x) => push(x?.url ?? x?.uri ?? x));
+    if (typeof d === "string") push(d);
+    return urls.filter(Boolean);
+  };
+
+  const uploadTikTokSkuAttrImage = async (file) => {
+    if (!file || !isImageFile(file)) {
+      return { ok: false, msg: "请上传图片文件" };
+    }
+    const form = new FormData();
+    form.append("file", file);
+    form.append("use_case", "ATTRIBUTE_IMAGE");
+    const res = await postAuthedFormData("/api/tiktok/upload_attrs_img", form);
+    if (String(res?.code) === "2") {
+      clearAuth();
+      window.location.href = "/login.html";
+      return { ok: false, msg: "未登录" };
+    }
+    if (String(res?.code) !== "0" || !res?.data) {
+      return { ok: false, msg: res?.msg || "上传失败", res };
+    }
+    const urls = pickTikTokImageUrls(res?.data || {});
+    return { ok: true, url: urls[0] || resolveTikTokUploadUrl(res?.data || {}), res };
+  };
+
+  const renderSkuModalImages = () => {
+    if (!skuModalImages) return;
+    const row = skuDraft.get(activeSkuKey) || {};
+    const images = Array.isArray(row.attr_img_list) ? row.attr_img_list : [];
+    skuModalImages.innerHTML =
+      images
+        .map((img, i) => {
+          const uploading = Boolean(img?.uploading);
+          const hasError = Boolean(img?.uploadError);
+          const okBadge = img?.uploadedOk
+            ? '<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px]" title="Upload OK"><i class="fas fa-check"></i></span>'
+            : "";
+          const statusBadge = uploading
+            ? '<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-900 text-white text-[9px]" title="Uploading"><i class="fas fa-circle-notch fa-spin"></i></span>'
+            : hasError
+              ? '<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-rose-500 text-white text-[9px]" title="Upload failed"><i class="fas fa-triangle-exclamation"></i></span>'
+              : "";
+          return `
+            <div class="relative rounded-lg border border-slate-200 bg-white overflow-hidden">
+              <button type="button" data-view-image="${escapeHtml(img.img_url || "")}" class="block w-16 h-16 bg-slate-50 relative">
+                <img src="${escapeHtml(img.img_url || "")}" class="w-full h-full object-cover" alt="" />
+                ${
+                  uploading
+                    ? '<span class="absolute inset-0 bg-white/70 flex items-center justify-center text-slate-700"><i class="fas fa-circle-notch fa-spin"></i></span>'
+                    : ""
+                }
+              </button>
+              <div class="absolute left-1 top-1 flex items-center gap-1">
+                ${statusBadge}
+                ${okBadge}
+              </div>
+              <button type="button" data-sku-modal-img-remove="${escapeHtml(activeSkuKey)}" data-sku-modal-img-idx="${i}" class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center">
+                <i class="fas fa-xmark"></i>
+              </button>
+            </div>
+          `;
+        })
+        .join("") || '<span class="text-[11px] text-slate-400">暂无图片</span>';
+  };
+
+  const renderSkuModalStatus = () => {
+    if (!skuModalStatus) return;
+    const complete = isSkuComplete(skuDraft.get(activeSkuKey));
+    skuModalStatus.textContent = complete ? "已完成" : "未完成";
+    skuModalStatus.className = complete
+      ? "text-[11px] px-2 py-1 rounded-full border font-black text-emerald-700 bg-emerald-50 border-emerald-200"
+      : "text-[11px] px-2 py-1 rounded-full border font-black text-amber-700 bg-amber-50 border-amber-200";
+  };
+
+  function openSkuModal(key, label) {
+    if (!skuModal) return;
+    activeSkuKey = key;
+    if (!skuDraft.has(key)) skuDraft.set(key, { attr_img_list: [] });
+    const row = skuDraft.get(key);
+    if (!String(row?.sku_identifier_type ?? "").trim()) row.sku_identifier_type = "GTIN";
+    if (skuModalTitle) skuModalTitle.textContent = "SKU 组合配置";
+    if (skuModalSubtitle) skuModalSubtitle.textContent = label || "-";
+    skuModal.querySelectorAll("[data-sku-modal-field]").forEach((input) => {
+      const field = input.getAttribute("data-sku-modal-field");
+      let next = row?.[field] ?? "";
+      if (field === "sku_identifier_type" && !String(next || "").trim()) next = "GTIN";
+      input.value = next;
+    });
+    renderSkuModalImages();
+    renderSkuModalStatus();
+    skuModal.classList.remove("hidden");
+  }
+
+  function closeSkuModal() {
+    if (!skuModal) return;
+    skuModal.classList.add("hidden");
+    activeSkuKey = "";
+  }
+
+  const toggleSalesAttrSelection = (id, item) => {
+    const key = String(id ?? "").trim();
+    if (!key) return;
+    if (salesAttrSelections.has(key)) {
+      salesAttrSelections.delete(key);
+      renderTikTokSalesAttrs();
+      renderTikTokSalesAttrValues();
+      renderTikTokSkuGrid();
+      return;
+    }
+    if (salesAttrSelections.size >= MAX_SALES_ATTR_NAMES) {
+      setSalesAttrNameMsg(`最多选择 ${MAX_SALES_ATTR_NAMES} 个销售属性名称。`, "error");
+      return;
+    }
+    const payload = item || { id: key, name: key, custom: true, values: [] };
+    salesAttrSelections.set(key, { ...payload, values: Array.isArray(payload.values) ? payload.values : [] });
+    renderTikTokSalesAttrs();
+    renderTikTokSalesAttrValues();
+    renderTikTokSkuGrid();
+  };
+
+  const addCustomSalesAttrName = () => {
+    if (!salesAttrCustomInput) return;
+    const name = normalizeSalesAttrName(salesAttrCustomInput.value);
+    if (!name) {
+      setSalesAttrNameMsg("请输入自定义销售属性名称。", "error");
+      return;
+    }
+    const items = getTikTokSalesItems();
+    const hit = items.find((it) => normalizeSalesAttrName(it.name).toLowerCase() === name.toLowerCase());
+    if (hit) {
+      toggleSalesAttrSelection(hit.id, { ...hit, custom: false, values: salesAttrSelections.get(hit.id)?.values || [] });
+      salesAttrCustomInput.value = "";
+      return;
+    }
+    const id = `custom:${name}`;
+    toggleSalesAttrSelection(id, { id, name, custom: true, values: [] });
+    salesAttrCustomInput.value = "";
+  };
 
   const syncTemplateDependencies = (res) => {
     lastAttrIndex = new Map();
@@ -2113,6 +2481,7 @@ export function setupTikTok() {
     updateBrandSelectedHint();
     showTemplateMsg("");
     clearCertificationsState();
+    clearSalesAttrSelections();
   };
 
   const getRequiredAttrMissing = () => {
@@ -2133,6 +2502,17 @@ export function setupTikTok() {
     const sn = String(document.getElementById("tiktok-goods-sn")?.value ?? "").trim();
     const brief = String(document.getElementById("tiktok-goods-brief")?.value ?? "").trim();
     return Boolean(name && sn && brief);
+  };
+
+  const isAllSkuCombosComplete = () => {
+    if (!salesAttrSelections.size) return false;
+    const combos = getTikTokSalesCombos();
+    if (!combos.length) return false;
+    return combos.every((combo) => {
+      const key = normalizeGoodsAttrKey(combo.map((x) => x.goods_attr_id).join(","));
+      const row = skuDraft.get(key);
+      return isSkuComplete(row);
+    });
   };
 
   const setPanelVisible = (el, show) => {
@@ -2185,12 +2565,13 @@ export function setupTikTok() {
     const certsOk = missingCerts.length === 0;
     const imagesOk = parseTikTokImgJson().length > 0;
     const descOk = isDescOk();
+    const skuOk = isAllSkuCombosComplete();
     return {
       done1: catOk,
       done2: attrsOk,
       done3: imagesOk && certsOk,
       done4: descOk,
-      done5: false,
+      done5: skuOk,
       allow2: catOk,
       allow3: attrsOk,
       allow4: imagesOk && certsOk,
@@ -2205,7 +2586,7 @@ export function setupTikTok() {
     setStepDone(stepCheck2, unlockedUploadStep >= 2);
     setStepDone(stepCheck3, unlockedUploadStep >= 3);
     setStepDone(stepCheck4, unlockedUploadStep >= 4);
-    setStepDone(stepCheck5, unlockedUploadStep >= 5);
+    setStepDone(stepCheck5, p.done5);
 
     if (stepHint1) {
       const selectedText = String(document.getElementById("tiktok-cat-id-text")?.textContent ?? "").trim();
@@ -2215,7 +2596,7 @@ export function setupTikTok() {
     if (stepHint2) stepHint2.textContent = p.done2 ? "模板已填写" : "属性模板与映射";
     if (stepHint3) stepHint3.textContent = p.done3 ? "图片已上传" : "上传主图/详情图";
     if (stepHint4) stepHint4.textContent = p.done4 ? "描述已填写" : "填写商品描述";
-    if (stepHint5) stepHint5.textContent = "填写字段并提交";
+    if (stepHint5) stepHint5.textContent = p.done5 ? "组合已配置" : "请配置组合信息";
 
     setStepEnabled(stepBtn1, true);
     setStepEnabled(stepBtn2, unlockedUploadStep >= 2);
@@ -2833,6 +3214,7 @@ export function setupTikTok() {
       writeTikTokAttrsJson([]);
       renderAttrSummary();
       renderTikTokTemplateForm();
+      clearSalesAttrSelections();
       showTemplateMsg("");
       renderTikTokStepper();
       queueDraftSave();
@@ -2856,11 +3238,17 @@ export function setupTikTok() {
       }
       renderTikTokTemplateForm();
       syncCertificationsFromTemplate(res);
+      renderTikTokSalesAttrs();
+      renderTikTokSalesAttrValues();
+      renderTikTokSkuGrid();
       return res;
     } catch {
       lastTemplateRes = { code: "1", msg: "网络异常，请稍后重试。", data: {} };
       setPre(templatePre, lastTemplateRes);
       renderTikTokTemplateForm();
+      renderTikTokSalesAttrs();
+      renderTikTokSalesAttrValues();
+      renderTikTokSkuGrid();
       return lastTemplateRes;
     } finally {
       if (templateBtn) {
@@ -2988,6 +3376,234 @@ export function setupTikTok() {
 
   // Auto fetch template if category already selected (e.g. restored from cache).
   maybeAutoFetchTemplate();
+  renderTikTokSalesAttrs();
+  renderTikTokSalesAttrValues();
+  renderTikTokSkuGrid();
+
+  if (salesAttrNamesEl) {
+    salesAttrNamesEl.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-sales-spec-id]");
+      if (!btn) return;
+      const id = String(btn.dataset.salesSpecId ?? "").trim();
+      if (!id) return;
+      const items = getTikTokSalesItems();
+      const hit = items.find((it) => String(it.id) === id);
+      if (hit) {
+        toggleSalesAttrSelection(id, { ...hit, custom: false, values: salesAttrSelections.get(id)?.values || [] });
+      } else if (salesAttrSelections.has(id)) {
+        toggleSalesAttrSelection(id);
+      } else {
+        const label = id.replace(/^custom:/, "");
+        toggleSalesAttrSelection(id, { id, name: label || id, custom: true, values: [] });
+      }
+    });
+  }
+
+  if (salesAttrCustomAdd) {
+    salesAttrCustomAdd.addEventListener("click", () => {
+      addCustomSalesAttrName();
+    });
+  }
+
+  if (salesAttrCustomInput) {
+    salesAttrCustomInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      addCustomSalesAttrName();
+    });
+  }
+
+  if (salesAttrValuesEl) {
+    salesAttrValuesEl.addEventListener("click", async (e) => {
+      const addBtn = e.target?.closest?.("[data-sales-value-add]");
+      if (addBtn) {
+        const specId = String(addBtn.dataset.salesValueAdd ?? "").trim();
+        const sel = salesAttrSelections.get(specId);
+        if (!sel) return;
+        const input = salesAttrValuesEl.querySelector(`[data-sales-value-input="${CSS.escape(specId)}"]`);
+        const val = String(input?.value ?? "").trim();
+        if (!val) {
+          setSalesAttrNameMsg("请填写属性值。", "error");
+          return;
+        }
+        if (sel.values?.some((v) => String(v.value ?? "") === val)) {
+          setSalesAttrNameMsg("该属性值已存在。", "error");
+          return;
+        }
+        addBtn.disabled = true;
+        addBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i>记录中';
+        try {
+          const goodsId = attrGoodsId?.value?.trim() || "0";
+          const res = await postAuthedJson("/api/tiktok/insert_attr_input", {
+            goods_id: goodsId,
+            attr_value: val,
+            type_name: sel.name,
+            type_id: sel.id,
+          });
+          if (String(res?.code) === "2") {
+            clearAuth();
+            window.location.href = "/login.html";
+            return;
+          }
+          if (String(res?.code) !== "0" || !res?.data?.goods_attr_id) {
+            setSalesAttrNameMsg(res?.msg || "属性值记录失败。", "error");
+            return;
+          }
+          const goodsAttrId = String(res.data.goods_attr_id ?? "").trim();
+          sel.values = Array.isArray(sel.values) ? sel.values : [];
+          sel.values.push({ value: val, goods_attr_id: goodsAttrId });
+          if (input) input.value = "";
+          setSalesAttrNameMsg("属性值已记录。", "ok");
+          renderTikTokSalesAttrValues();
+          renderTikTokSkuGrid();
+        } catch {
+          setSalesAttrNameMsg("网络异常，请稍后重试。", "error");
+        } finally {
+          addBtn.disabled = false;
+          addBtn.innerHTML = "添加";
+        }
+        return;
+      }
+
+      const removeBtn = e.target?.closest?.("[data-sales-value-remove]");
+      if (removeBtn) {
+        const specId = String(removeBtn.dataset.salesValueRemove ?? "").trim();
+        const valId = String(removeBtn.dataset.salesValueId ?? "").trim();
+        const sel = salesAttrSelections.get(specId);
+        if (!sel) return;
+        sel.values = (Array.isArray(sel.values) ? sel.values : []).filter(
+          (v) => String(v.goods_attr_id ?? "") !== valId
+        );
+        renderTikTokSalesAttrValues();
+        renderTikTokSkuGrid();
+      }
+    });
+  }
+
+  if (skuGridEl) {
+    skuGridEl.addEventListener("click", (e) => {
+      const editBtn = e.target?.closest?.("[data-sku-edit]");
+      if (!editBtn) return;
+      const key = String(editBtn.dataset.skuEdit ?? "").trim();
+      const label = String(editBtn.dataset.skuLabel ?? "").trim();
+      openSkuModal(key, label);
+    });
+  }
+
+  if (skuModal) {
+    skuModal.querySelectorAll("[data-sku-modal-field]").forEach((input) => {
+      const updateSku = () => {
+        if (!activeSkuKey) return;
+        if (!skuDraft.has(activeSkuKey)) skuDraft.set(activeSkuKey, { attr_img_list: [] });
+        const row = skuDraft.get(activeSkuKey);
+        const field = input.getAttribute("data-sku-modal-field");
+        row[field] = String(input.value ?? "").trim();
+        renderSkuModalStatus();
+        renderTikTokSkuGrid();
+      };
+      input.addEventListener("input", updateSku);
+      input.addEventListener("change", updateSku);
+    });
+  }
+
+  if (skuModalUpload) {
+    skuModalUpload.addEventListener("click", () => {
+      if (skuModalFile) skuModalFile.click();
+    });
+  }
+
+  if (skuModalFile) {
+    skuModalFile.addEventListener("change", async () => {
+      if (!activeSkuKey) return;
+      const row = skuDraft.get(activeSkuKey);
+      if (!row) return;
+      const files = Array.from(skuModalFile.files || []);
+      if (!files.length) return;
+      row.attr_img_list = Array.isArray(row.attr_img_list) ? row.attr_img_list : [];
+      const remaining = Math.max(0, 10 - row.attr_img_list.length);
+      const queue = files.slice(0, remaining);
+      if (queue.length < files.length) setSalesAttrNameMsg("每个组合最多上传 10 张图片。", "error");
+
+      const pending = queue.map((file) => {
+        const localId = `sku-local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        let tempUrl = "";
+        try {
+          tempUrl = URL.createObjectURL(file);
+        } catch {
+          tempUrl = "";
+        }
+        row.attr_img_list.push({
+          img_id: "0",
+          img_url: tempUrl,
+          name: file.name || "",
+          localId,
+          uploading: true,
+          uploadedOk: false,
+          uploadError: "",
+        });
+        return { file, localId, tempUrl };
+      });
+
+      renderSkuModalImages();
+      renderSkuModalStatus();
+
+      const updateSkuImg = (localId, patch) => {
+        const img = row.attr_img_list.find((x) => x?.localId === localId);
+        if (!img) return;
+        Object.assign(img, patch);
+      };
+
+      for (const { file, localId, tempUrl } of pending) {
+        const res = await uploadTikTokSkuAttrImage(file);
+        if (!res.ok || !res.url) {
+          updateSkuImg(localId, { uploading: false, uploadError: res.msg || res?.res?.msg || "上传失败" });
+        } else {
+          updateSkuImg(localId, { img_url: res.url, uploading: false, uploadedOk: true, uploadError: "" });
+        }
+        if (tempUrl) {
+          try {
+            URL.revokeObjectURL(tempUrl);
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      skuModalFile.value = "";
+      renderSkuModalImages();
+      renderSkuModalStatus();
+      renderTikTokSkuGrid();
+    });
+  }
+
+  if (skuModalImages) {
+    skuModalImages.addEventListener("click", (e) => {
+      const removeBtn = e.target?.closest?.("[data-sku-modal-img-remove]");
+      if (!removeBtn) return;
+      const idx = Number(removeBtn.dataset.skuModalImgIdx ?? "-1");
+      const row = skuDraft.get(activeSkuKey);
+      if (!row || !Array.isArray(row.attr_img_list)) return;
+      if (!Number.isFinite(idx) || idx < 0) return;
+      row.attr_img_list.splice(idx, 1);
+      renderSkuModalImages();
+      renderSkuModalStatus();
+      renderTikTokSkuGrid();
+    });
+  }
+
+  if (skuModalClose) skuModalClose.addEventListener("click", closeSkuModal);
+  if (skuModalOverlay) skuModalOverlay.addEventListener("click", closeSkuModal);
+  if (skuModal) {
+    const handleSkuEsc = (e) => {
+      if (e.key !== "Escape") return;
+      if (e.defaultPrevented) return;
+      if (skuModal.classList.contains("hidden")) return;
+      const viewer = document.getElementById("image-viewer");
+      if (viewer && !viewer.classList.contains("hidden")) return;
+      closeSkuModal();
+    };
+    document.addEventListener("keydown", handleSkuEsc);
+  }
 
   try {
     const obs = new MutationObserver(() => {

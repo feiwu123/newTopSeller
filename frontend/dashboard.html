@@ -1534,7 +1534,7 @@
               <div class="flex items-center gap-2 min-w-0">
                 <div class="min-w-0">
                   <h2 class="text-base font-black text-slate-900 truncate">TikTok &#x5546;&#x54C1;&#x4E0A;&#x4F20;</h2>
-                  <div class="text-xs text-slate-400 mt-0.5">&#x6309;&#x6B65;&#x9AA4;&#x586B;&#x5199;&#xFF1A;&#x7C7B;&#x76EE; &#x2192; &#x6A21;&#x677F;&#x5C5E;&#x6027; &#x2192; &#x4E0A;&#x4F20;&#x56FE;&#x7247; &#x2192; &#x5546;&#x54C1;&#x63CF;&#x8FF0; &#x2192; &#x63D0;&#x4EA4;</div>
+                  <div class="text-xs text-slate-400 mt-0.5">&#x6309;&#x6B65;&#x9AA4;&#x586B;&#x5199;&#xFF1A;&#x7C7B;&#x76EE; &#x2192; &#x6A21;&#x677F;&#x5C5E;&#x6027; &#x2192; &#x4E0A;&#x4F20;&#x56FE;&#x7247; &#x2192; &#x5546;&#x54C1;&#x63CF;&#x8FF0; &#x2192; &#x65B0;&#x589E;&#x5546;&#x54C1;</div>
                 </div>
               </div>
               <div class="flex items-center gap-2">
@@ -1607,7 +1607,7 @@
                   <div class="flex items-center gap-3">
                     <span id="tiktok-step-5-dot" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">5</span>
                     <div class="min-w-0">
-                      <div class="text-sm font-semibold text-slate-800">&#x63D0;&#x4EA4;&#x4FE1;&#x606F;</div>
+                      <div class="text-sm font-semibold text-slate-800">&#x65B0;&#x589E;&#x5546;&#x54C1;</div>
                       <div id="tiktok-step-5-hint" class="text-[11px] text-slate-400 truncate">&#x586B;&#x5199;&#x5B57;&#x6BB5;&#x5E76;&#x63D0;&#x4EA4;</div>
                     </div>
                     <i id="tiktok-step-5-check" class="fas fa-check-circle text-emerald-600 hidden"></i>
@@ -1896,16 +1896,43 @@
             <div id="tiktok-submit-block" class="space-y-2">
               <div class="flex items-center gap-2 text-xs font-bold text-slate-600">
                 <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-black">5</span>
-                <span>&#x63D0;&#x4EA4;&#x4FE1;&#x606F;</span>
+                <span>&#x65B0;&#x589E;&#x5546;&#x54C1;</span>
               </div>
-              <textarea id="tiktok-attrs-json" class="hidden">[]</textarea>
-              <textarea id="tiktok-img-json" class="hidden">[]</textarea>
-              <textarea
-                id="tiktok-extra-json"
-                class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono"
-                rows="3"
-                placeholder="&#x53EF;&#x9009;&#xFF1A;&#x989D;&#x5916;&#x5B57;&#x6BB5;(JSON &#x5BF9;&#x8C61;)&#xFF0C;&#x4F8B;&#x5982; certifications_type / certifications_data &#x7B49;"
-              ></textarea>
+              <div class="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 space-y-3">
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  &#x9500;&#x552E;&#x5C5E;&#x6027;&#x540D;&#x79F0;&#xFF08;&#x6700;&#x591A;&#x9009; 3 &#x4E2A;&#xFF09;
+                  <span class="text-[10px] text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-black">&#x53EF;&#x9009;</span>
+                </div>
+                <div id="tiktok-sales-attr-names" class="flex flex-wrap gap-2"></div>
+                <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                  <input
+                    id="tiktok-sales-attr-custom"
+                    class="flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
+                    placeholder="&#x81EA;&#x5B9A;&#x4E49;&#x9500;&#x552E;&#x5C5E;&#x6027;&#x540D;&#x79F0;"
+                  />
+                  <button
+                    id="tiktok-sales-attr-custom-add"
+                    type="button"
+                    class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <i class="fas fa-plus mr-1"></i>&#x6DFB;&#x52A0;
+                  </button>
+                </div>
+              <div id="tiktok-sales-attr-msg" class="text-[11px] text-slate-400">
+                &#x4ECE;&#x6A21;&#x677F;&#x9009;&#x62E9;&#x9500;&#x552E;&#x5C5E;&#x6027;&#xFF0C;&#x6216;&#x81EA;&#x5B9A;&#x4E49;&#x540D;&#x79F0;&#x3002;
+              </div>
+            </div>
+            <div id="tiktok-sales-attr-values" class="space-y-3"></div>
+            <div class="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
+              <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                &#x5C5E;&#x6027;&#x6392;&#x5217;&#x7EC4;&#x5408;
+                <span class="text-[10px] text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-black">&#x5FC5;&#x586B;</span>
+              </div>
+              <div id="tiktok-sku-grid" class="space-y-3"></div>
+              <div class="text-[11px] text-slate-400">当所有已选销售属性都填写了属性值后，会自动生成组合并可配置。</div>
+            </div>
+            <textarea id="tiktok-attrs-json" class="hidden">[]</textarea>
+            <textarea id="tiktok-img-json" class="hidden">[]</textarea>
               <div class="flex items-center gap-2">
                 <button
                   id="tiktok-selfcheck"
@@ -3027,6 +3054,78 @@
             id="orders-detail-modal-footer"
             class="hidden p-6 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-3"
           ></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tiktok-sku-modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center">
+      <div id="tiktok-sku-modal-overlay" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+      <div class="relative max-w-3xl w-[92vw] max-h-[90vh] bg-white rounded-2xl shadow-soft border border-slate-100 flex flex-col my-6">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <div id="tiktok-sku-modal-title" class="text-base font-bold text-slate-800 truncate">SKU 组合配置</div>
+            <div id="tiktok-sku-modal-subtitle" class="text-xs text-slate-400 mt-0.5 truncate">-</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="tiktok-sku-modal-status" class="text-[11px] px-2 py-1 rounded-full border font-black">未完成</span>
+            <button id="tiktok-sku-modal-close" type="button" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <i class="fas fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+        <div class="p-6 space-y-4 overflow-y-auto">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-slate-600">Código identificador <span class="text-rose-600">*</span></div>
+              <div class="flex items-center gap-2">
+                <select data-sku-modal-field="sku_identifier_type" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
+                  <option value="GTIN">GTIN</option>
+                  <option value="EAN">EAN</option>
+                  <option value="UPC">UPC</option>
+                  <option value="ISBN">ISBN</option>
+                </select>
+                <input data-sku-modal-field="sku_identifier_code" class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-slate-600">SKU 编码 <span class="text-rose-600">*</span></div>
+              <input data-sku-modal-field="product_sn" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
+            </div>
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-slate-600">库存 (product_number) <span class="text-rose-600">*</span></div>
+              <input data-sku-modal-field="product_number" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
+            </div>
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-slate-600">价格 <span class="text-rose-600">*</span></div>
+              <input data-sku-modal-field="product_price" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
+            </div>
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-slate-600">重量 (g)</div>
+              <input data-sku-modal-field="weight" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
+            </div>
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-slate-600">宽度 (cm)</div>
+              <input data-sku-modal-field="width" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
+            </div>
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-slate-600">高度 (cm)</div>
+              <input data-sku-modal-field="height" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
+            </div>
+            <div class="space-y-1">
+              <div class="text-[11px] font-semibold text-slate-600">长度 (cm)</div>
+              <input data-sku-modal-field="length" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-2 text-[11px] text-slate-600">
+              <span>属性图（最多 10 张）</span>
+              <button id="tiktok-sku-modal-upload" type="button" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[11px] font-semibold hover:bg-slate-800">
+                上传图片
+              </button>
+              <input id="tiktok-sku-modal-file" type="file" accept="image/*" multiple class="hidden" />
+            </div>
+            <div id="tiktok-sku-modal-images" class="flex flex-wrap gap-2"></div>
+          </div>
         </div>
       </div>
     </div>
