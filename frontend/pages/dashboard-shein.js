@@ -204,6 +204,12 @@ export function setupShein() {
     "3": "\u5355\u9009",
     "4": "\u81ea\u5b9a\u4e49",
   };
+  const SHEIN_MODE_META = {
+    "0": { text: "\u6587\u672c", icon: "fa-pen-nib", chip: "text-violet-800 bg-violet-50 border-violet-200" },
+    "1": { text: "\u591a\u9009", icon: "fa-list-check", chip: "text-sky-800 bg-sky-50 border-sky-200" },
+    "3": { text: "\u5355\u9009", icon: "fa-circle-dot", chip: "text-sky-800 bg-sky-50 border-sky-200" },
+    "4": { text: "\u81ea\u5b9a\u4e49", icon: "fa-sliders", chip: "text-amber-800 bg-amber-50 border-amber-200" },
+  };
 
   const renderSheinTemplateForm = () => {
     if (!templateForm) return;
@@ -229,53 +235,98 @@ export function setupShein() {
     const cardHtml = sheinAttrList
       .map((attr) => {
         const modeLabel = SHEIN_MODE_LABELS[attr.mode] || "\u5176\u4ed6";
+        const modeMeta = SHEIN_MODE_META[attr.mode] || { text: modeLabel, icon: "fa-shapes", chip: "text-slate-700 bg-slate-50 border-slate-200" };
         const optionCount = attr.options.length;
         const badge = attr.mode === "1" || attr.mode === "3" ? `\u5019\u9009 ${optionCount} \u4e2a` : "";
         const sel = sheinAttrSelections.get(attr.key);
         const hasText = sel?.value && String(sel.value).trim();
         const hasValues = Array.isArray(sel?.values) && sel.values.length;
-        const selectedHtml = hasValues
-          ? `<div class="flex flex-wrap gap-2">${sel.values
-              .map(
-                (v) =>
-                  `<span class="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-[11px] text-slate-600">${escapeHtml(
-                    String(v),
-                  )}</span>`,
-              )
+        const customRows = Array.isArray(sel?.rows) ? sel.rows : [];
+        const customFilled = customRows.filter((r) => (r?.value ?? "").toString().trim());
+        const selectedHtml = customFilled.length
+          ? `<div class="space-y-1 text-xs text-slate-700">${customFilled
+              .map((r) => {
+                const name = String(r?.name ?? "").trim();
+                const value = String(r?.value ?? "").trim();
+                const label = name && value ? `${name}：${value}` : value || name;
+                return `<div class="break-words">${escapeHtml(label)}</div>`;
+              })
               .join("")}</div>`
-          : hasText
-            ? `<div class="text-xs text-slate-700 break-words">${escapeHtml(String(sel.value))}</div>`
-            : '<div class="text-xs text-slate-400">\u70b9\u51fb\u9009\u62e9/\u586b\u5199</div>';
+          : hasValues
+            ? `<div class="flex flex-wrap gap-2">${sel.values
+                .map(
+                  (v) =>
+                    `<span class="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-[11px] text-slate-600">${escapeHtml(
+                      String(v),
+                    )}</span>`,
+                )
+                .join("")}</div>`
+            : hasText
+              ? `<div class="text-xs text-slate-700 break-words">${escapeHtml(String(sel.value))}</div>`
+              : '<div class="text-xs text-slate-400">\u672a\u586b\u5199</div>';
         const selectedCls = hasValues || hasText ? "attr-card-done" : "";
         const baseCls =
           "relative overflow-hidden rounded-3xl border-2 border-slate-100 bg-white p-5 pl-6 text-left w-full hover:border-accent/30 transition-colors";
+        const accentBar = hasValues || hasText ? "bg-emerald-500" : "bg-slate-400/70";
+        const modeChip = `<span class="text-[10px] ${modeMeta.chip} border px-2 py-0.5 rounded-full font-black">${escapeHtml(
+          modeMeta.text,
+        )}</span>`;
+        const candidateHtml = (() => {
+          if (attr.mode !== "1" && attr.mode !== "3") return "";
+          const labels = attr.options.map((opt) => String(opt?.label ?? "").trim()).filter(Boolean);
+          if (!labels.length) return "";
+          return `
+            <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+              <span class="inline-flex items-center gap-1.5 text-amber-600">
+                <i class="fas fa-circle-exclamation"></i>
+                <span>${escapeHtml(badge || "\u5019\u9009")}</span>
+              </span>
+            </div>
+          `;
+        })();
 
         return `
           <button type="button" data-attr-card="1" data-attr-key="${escapeHtml(
             attr.key,
           )}" class="${baseCls} ${selectedCls}">
-            <div class="flex items-center justify-between gap-2">
-              <div class="text-xs font-bold text-slate-700">${escapeHtml(attr.name)}</div>
-              <div class="flex items-center gap-2">
-                <span class="text-[11px] text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">${escapeHtml(
-                  modeLabel,
-                )}</span>
-                ${badge ? `<span class="text-[11px] text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">${badge}</span>` : ""}
-              </div>
+            <div class="absolute left-2 top-4 bottom-4 w-1 rounded-full ${accentBar}"></div>
+            <div class="absolute -right-8 -top-10 text-slate-100 text-6xl rotate-12 pointer-events-none">
+              <i class="fas fa-tags"></i>
             </div>
-            ${selectedHtml}
+            <div class="pl-2 space-y-2">
+              <div class="flex items-start gap-2 text-base font-black text-slate-900">
+                <i class="fas ${escapeHtml(modeMeta.icon)} text-slate-600 mt-0.5"></i>
+                <span class="break-words whitespace-normal">${escapeHtml(attr.name)}</span>
+              </div>
+              ${candidateHtml}
+              <div class="flex flex-wrap gap-1.5 justify-end">${modeChip}</div>
+              <div class="mt-2">${selectedHtml}</div>
+            </div>
           </button>
         `;
       })
       .join("");
 
     templateForm.innerHTML = cardHtml;
+    templateForm.querySelectorAll("[data-attr-card]").forEach((card) => {
+      if (card.dataset.bound === "1") return;
+      card.dataset.bound = "1";
+      card.addEventListener("click", () => {
+        const key = String(card.dataset.attrKey || "").trim();
+        const attr = sheinAttrByKey.get(key);
+        if (!attr) return;
+        openAttrModal(attr);
+      });
+    });
   };
 
 
 
   const openAttrModal = (attr) => {
     if (!attrModal || !attrModalBody) return;
+    if (attrModal.parentElement !== document.body) {
+      document.body.appendChild(attrModal);
+    }
     activeAttrKey = attr?.key || "";
     const modeLabel = SHEIN_MODE_LABELS[attr?.mode] || "\u5176\u4ed6";
     const optionCount = attr?.options?.length || 0;
@@ -285,7 +336,7 @@ export function setupShein() {
     if (attrModalSubtitle) attrModalSubtitle.textContent = subtitle;
 
     const sel = sheinAttrSelections.get(activeAttrKey);
-    if (attr?.mode === "0" || attr?.mode === "4") {
+    if (attr?.mode === "0") {
       const value = sel?.value ?? "";
       attrModalBody.innerHTML = `
         <div class="space-y-2">
@@ -295,55 +346,216 @@ export function setupShein() {
           )}" placeholder="\u8bf7\u8f93\u5165${escapeHtml(modeLabel)}\u503c" />
         </div>
       `;
+    } else if (attr?.mode === "4") {
+      const rawList = Array.isArray(attr?.raw?.attribute_value_info_list) ? attr.raw.attribute_value_info_list : [];
+      const options = rawList.map((opt) => String(opt?.attribute_value ?? "").trim()).filter(Boolean);
+      const maxRows = Math.max(1, options.length || 1);
+      const existingRows = Array.isArray(sel?.rows) && sel.rows.length ? sel.rows : [{ name: "", value: "" }];
+
+      attrModalBody.innerHTML = `
+        <div class="space-y-3">
+          <div class="grid grid-cols-3 gap-2 text-[11px] text-slate-500 font-semibold">
+            <div>\u540d\u79f0</div>
+            <div>\u5185\u5bb9</div>
+            <div class="text-right">\u64cd\u4f5c</div>
+          </div>
+          <div id="shein-custom-msg" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl"></div>
+          <div id="shein-custom-rows" class="space-y-2"></div>
+          <div class="flex items-center justify-between">
+            <div class="text-[11px] text-slate-400">\u6700\u591a\u53ef\u6dfb\u52a0 ${maxRows} \u884c</div>
+            <button id="shein-custom-add" type="button" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <i class="fas fa-plus mr-1"></i>\u6dfb\u52a0\u884c
+            </button>
+          </div>
+        </div>
+      `;
+
+      const rowsWrap = attrModalBody.querySelector("#shein-custom-rows");
+      const addBtn = attrModalBody.querySelector("#shein-custom-add");
+      const msgEl = attrModalBody.querySelector("#shein-custom-msg");
+
+      const buildOptions = (selectedName, rows, rowIndex) => {
+        if (!options.length) return `<option value="">\u8bf7\u8f93\u5165\u540d\u79f0</option>`;
+        const taken = new Set(
+          rows
+            .filter((_, idx) => idx !== rowIndex)
+            .map((r) => String(r?.name ?? "").trim())
+            .filter(Boolean)
+        );
+        const placeholder = `<option value="" ${selectedName ? "" : "selected"}>\u8bf7\u9009\u62e9\u540d\u79f0</option>`;
+        return (
+          placeholder +
+          options
+          .map((name) => {
+            const isSelected = name === selectedName;
+            const isDisabled = !isSelected && taken.has(name);
+            return `<option value="${escapeHtml(name)}" ${isSelected ? "selected" : ""} ${isDisabled ? "disabled" : ""}>${escapeHtml(
+              name
+            )}</option>`;
+          })
+          .join("")
+        );
+      };
+
+      const renderRows = (rows) => {
+        if (!rowsWrap) return;
+        rowsWrap.innerHTML = "";
+        rows.forEach((row, idx) => {
+          const rowEl = document.createElement("div");
+          rowEl.className = "grid grid-cols-3 gap-2 items-center";
+          rowEl.innerHTML = `
+            <select data-custom-name="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
+              ${buildOptions(String(row?.name ?? "").trim(), rows, idx)}
+            </select>
+            <input data-custom-value="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" value="${escapeHtml(
+              String(row?.value ?? ""),
+            )}" placeholder="\u8bf7\u586b\u5199\u5185\u5bb9" />
+            <div class="flex justify-end">
+              <button type="button" data-custom-del="1" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          `;
+          rowsWrap.appendChild(rowEl);
+          const nameSelect = rowEl.querySelector("[data-custom-name]");
+          if (nameSelect) {
+            nameSelect.addEventListener("change", () => {
+              row.name = String(nameSelect.value || "").trim();
+              if (msgEl) msgEl.classList.add("hidden");
+              renderRows(rows);
+            });
+          }
+          const valueInput = rowEl.querySelector("[data-custom-value]");
+          if (valueInput) {
+            valueInput.addEventListener("input", () => {
+              row.value = String(valueInput.value || "");
+              if (msgEl) msgEl.classList.add("hidden");
+            });
+          }
+          const delBtn = rowEl.querySelector("[data-custom-del]");
+          if (delBtn) {
+            delBtn.disabled = rows.length <= 1;
+            delBtn.classList.toggle("opacity-50", rows.length <= 1);
+            delBtn.addEventListener("click", () => {
+              if (rows.length <= 1) return;
+              rows.splice(idx, 1);
+              renderRows(rows);
+              if (addBtn) addBtn.disabled = rows.length >= maxRows;
+            });
+          }
+        });
+      };
+
+      const rowsState = existingRows.map((r) => ({ name: r?.name ?? "", value: r?.value ?? "" }));
+      renderRows(rowsState);
+
+      if (addBtn) {
+        addBtn.disabled = rowsState.length >= maxRows;
+        addBtn.addEventListener("click", () => {
+          if (rowsState.length >= maxRows) return;
+          rowsState.push({ name: "", value: "" });
+          renderRows(rowsState);
+          addBtn.disabled = rowsState.length >= maxRows;
+        });
+      }
     } else {
       const options = Array.isArray(attr?.options) ? attr.options : [];
       if (!options.length) {
         attrModalBody.innerHTML = '<div class="text-xs text-slate-400">\u6682\u65e0\u5019\u9009\u9879</div>';
       } else {
-        const inputType = attr.mode === "1" ? "checkbox" : "radio";
-        const name = `shein-attr-${attr.key}`;
         const selected = new Set(Array.isArray(sel?.values) ? sel.values : []);
         attrModalBody.innerHTML = `
-          <div class="space-y-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             ${options
               .map((opt, idx) => {
                 const label = String(opt?.label ?? "");
-                const checked = selected.has(label) ? "checked" : "";
+                const display = label || `\u9009\u9879 ${idx + 1}`;
+                const isSelected = selected.has(label) || selected.has(display);
+                const activeCls = isSelected ? "ring-2 ring-accent/30 border-accent/40 bg-accent/5 shein-opt-active" : "";
                 return `
-                  <label class="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-700 hover:border-accent/40">
-                    <input type="${inputType}" name="${escapeHtml(name)}" value="${escapeHtml(label)}" ${checked} />
-                    <span class="flex-1 break-words">${escapeHtml(label || `\u9009\u9879 ${idx + 1}`)}</span>
-                  </label>
+                  <button type="button" data-shein-opt="1" data-value="${escapeHtml(display)}"
+                    class="shein-opt-btn px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 text-left flex items-center justify-between gap-2 hover:bg-slate-50 ${activeCls}">
+                    <span class="flex-1 break-words">${escapeHtml(display)}</span>
+                    <i class="fas fa-check text-emerald-600 ${isSelected ? "" : "hidden"}"></i>
+                  </button>
                 `;
               })
               .join("")}
           </div>
         `;
+
+        const buttons = Array.from(attrModalBody.querySelectorAll("[data-shein-opt]"));
+        buttons.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const isMulti = attr.mode === "1";
+            if (!isMulti) {
+              buttons.forEach((b) => {
+                b.classList.remove("ring-2", "ring-accent/30", "border-accent/40", "bg-accent/5", "shein-opt-active");
+                b.querySelector("i")?.classList.add("hidden");
+              });
+            }
+            const active = btn.classList.contains("shein-opt-active");
+            if (isMulti) {
+              if (active) {
+                btn.classList.remove("ring-2", "ring-accent/30", "border-accent/40", "bg-accent/5", "shein-opt-active");
+                btn.querySelector("i")?.classList.add("hidden");
+              } else {
+                btn.classList.add("ring-2", "ring-accent/30", "border-accent/40", "bg-accent/5", "shein-opt-active");
+                btn.querySelector("i")?.classList.remove("hidden");
+              }
+            } else {
+              btn.classList.add("ring-2", "ring-accent/30", "border-accent/40", "bg-accent/5", "shein-opt-active");
+              btn.querySelector("i")?.classList.remove("hidden");
+            }
+          });
+        });
       }
     }
 
     attrModalBody.scrollTop = 0;
     attrModal.classList.remove("hidden");
+    attrModal.hidden = false;
+    attrModal.style.display = "flex";
   };
 
 
   const closeAttrModal = () => {
     if (!attrModal) return;
     attrModal.classList.add("hidden");
+    attrModal.hidden = true;
+    attrModal.style.display = "none";
     activeAttrKey = "";
   };
 
   const commitAttrModal = () => {
     const attr = sheinAttrByKey.get(activeAttrKey);
     if (!attr || !attrModalBody) return;
-    if (attr.mode === "0" || attr.mode === "4") {
+    if (attr.mode === "0") {
       const input = attrModalBody.querySelector("#shein-attr-input");
       const val = String(input?.value || "").trim();
       if (val) sheinAttrSelections.set(attr.key, { mode: attr.mode, value: val });
       else sheinAttrSelections.delete(attr.key);
+    } else if (attr.mode === "4") {
+      const rows = Array.from(attrModalBody.querySelectorAll("#shein-custom-rows > div")).map((row) => {
+        const name = String(row.querySelector("[data-custom-name]")?.value ?? "").trim();
+        const value = String(row.querySelector("[data-custom-value]")?.value ?? "").trim();
+        return { name, value };
+      });
+      const missingName = rows.some((r) => !r.name);
+      if (missingName) {
+        const msgEl = attrModalBody.querySelector("#shein-custom-msg");
+        if (msgEl) {
+          msgEl.textContent = "\u8bf7\u4e3a\u6bcf\u4e00\u884c\u9009\u62e9\u540d\u79f0";
+          msgEl.classList.remove("hidden");
+        }
+        return;
+      }
+      const cleaned = rows.filter((r) => r.name || r.value);
+      if (cleaned.length) sheinAttrSelections.set(attr.key, { mode: attr.mode, rows: cleaned });
+      else sheinAttrSelections.delete(attr.key);
     } else {
-      const inputs = Array.from(attrModalBody.querySelectorAll('input[type="checkbox"], input[type="radio"]'));
-      const values = inputs.filter((el) => el.checked).map((el) => String(el.value));
+      const buttons = Array.from(attrModalBody.querySelectorAll(".shein-opt-active"));
+      const values = buttons.map((el) => String(el.dataset.value || "").trim()).filter(Boolean);
       if (values.length) sheinAttrSelections.set(attr.key, { mode: attr.mode, values });
       else sheinAttrSelections.delete(attr.key);
     }
@@ -764,6 +976,21 @@ export function setupShein() {
       if (!attr) return;
       openAttrModal(attr);
     });
+  }
+  if (!document.body.dataset.sheinAttrBound) {
+    document.body.dataset.sheinAttrBound = "1";
+    document.addEventListener(
+      "click",
+      (e) => {
+        const card = e.target?.closest?.("[data-attr-card]");
+        if (!card) return;
+        const key = String(card.dataset.attrKey || "").trim();
+        const attr = sheinAttrByKey.get(key);
+        if (!attr) return;
+        openAttrModal(attr);
+      },
+      true
+    );
   }
 
   if (attrModalOverlay) attrModalOverlay.addEventListener("click", closeAttrModal);

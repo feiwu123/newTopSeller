@@ -50,6 +50,43 @@ export async function postJson(path, body) {
   });
 }
 
+export async function postUrlEncoded(path, body) {
+  const params = new URLSearchParams();
+  Object.entries(body || {}).forEach(([key, val]) => {
+    if (val == null) return;
+    if (Array.isArray(val) || (typeof val === "object" && val !== null)) {
+      params.set(key, JSON.stringify(val));
+      return;
+    }
+    params.set(key, String(val));
+  });
+
+  return withLoading(async () => {
+    let resp;
+    try {
+      resp = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: params.toString(),
+      });
+    } catch (e) {
+      return { code: "1", msg: "Network error, unable to reach server.", data: { error: String(e) } };
+    }
+
+    let text = "";
+    try {
+      text = await resp.text();
+    } catch (e) {
+      return { code: "1", msg: "Network error, unable to reach server.", data: { error: String(e) } };
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { code: "1", msg: "Server did not return JSON.", data: { raw: text } };
+    }
+  });
+}
+
 export async function postAuthedJson(path, body) {
   const auth = getAuth();
   if (!auth?.user || !auth?.token) {

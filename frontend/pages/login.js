@@ -1,4 +1,4 @@
-import { postJson } from "../js/apiClient.js";
+import { postUrlEncoded } from "../js/apiClient.js";
 import { getAuth, setAuth } from "../js/auth.js";
 
 const REMEMBER_KEY = "topm_login_remember";
@@ -73,7 +73,7 @@ export function initLoginPage() {
     btn.disabled = true;
     btn.textContent = "登录中...";
     try {
-      const payload = await postJson("/api/login", { user, pass });
+      const payload = await postUrlEncoded("/api/login", { user, pass });
       if (String(payload?.code) !== "0" || !payload?.data?.token) {
         setError(payload?.msg || "登录失败，请检查账号密码。");
         return;
