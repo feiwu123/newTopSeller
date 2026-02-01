@@ -80,6 +80,14 @@ export function setupShein() {
   const sheinOthersInput = document.getElementById("shein-others");
   const sheinGoodsAttrInput = document.getElementById("shein-goods-attr");
   const specDefinesInput = document.getElementById("shein-spec-defines");
+  const sheinSpecBlock = document.getElementById("shein-spec-block");
+  const sheinSpecMsg = document.getElementById("shein-spec-msg");
+  const sheinSpecMainCard = document.getElementById("shein-spec-main-card");
+  const sheinSpecMainSummary = document.getElementById("shein-spec-main-summary");
+  const sheinSpecMainBadge = document.getElementById("shein-spec-main-badge");
+  const sheinSpecOtherCard = document.getElementById("shein-spec-other-card");
+  const sheinSpecOtherSummary = document.getElementById("shein-spec-other-summary");
+  const sheinSpecOtherBadge = document.getElementById("shein-spec-other-badge");
 
   const imageTypeSelect = document.getElementById("shein-image-type");
   const fileInput = document.getElementById("shein-file");
@@ -119,6 +127,12 @@ export function setupShein() {
   let sheinAttrByKey = new Map();
   const sheinAttrSelections = new Map();
   let activeAttrKey = "";
+  let activeModalMode = "attr";
+  let activeSpecKind = "";
+  let sheinSpecMainList = [];
+  let sheinSpecOtherList = [];
+  let sheinSpecMainRows = [];
+  let sheinSpecOtherRows = [];
   const uploadBuckets = {
     "1": [],
     "2": [],
@@ -196,6 +210,128 @@ export function setupShein() {
         };
       })
       .filter((opt) => opt.label);
+  };
+
+  const getSpecValueOptions = (attr) => {
+    const list = Array.isArray(attr?.attribute_value_info_list) ? attr.attribute_value_info_list : [];
+    return list
+      .map((item) => {
+        const label =
+          item?.attribute_value_name ??
+          item?.value_name ??
+          item?.value ??
+          item?.name ??
+          item?.attribute_value ??
+          item?.text ??
+          item?.label ??
+          item?.title ??
+          "";
+        const id = item?.attribute_value_id ?? item?.value_id ?? item?.id ?? item?.valueId ?? "";
+        const text = String(label || id || "").trim();
+        return text ? { id: String(id || text).trim(), label: text } : null;
+      })
+      .filter(Boolean);
+  };
+
+  const normalizeSpecList = (raw) => {
+    const list = Array.isArray(raw) ? raw : [];
+    return list
+      .map((attr, idx) => {
+        const rawId = attr?.attribute_id ?? attr?.attributeId ?? attr?.id ?? "";
+        const name = String(attr?.attribute_name ?? attr?.name ?? attr?.title ?? "").trim();
+        if (!name) return null;
+        return {
+          key: `spec-${rawId || idx}`,
+          id: String(rawId || "").trim(),
+          name,
+          values: getSpecValueOptions(attr),
+          raw: attr,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const getSpecList = (kind) => (kind === "main" ? sheinSpecMainList : sheinSpecOtherList);
+  const getSpecRows = (kind) => (kind === "main" ? sheinSpecMainRows : sheinSpecOtherRows);
+  const setSpecRows = (kind, rows) => {
+    if (kind === "main") sheinSpecMainRows = rows;
+    else sheinSpecOtherRows = rows;
+  };
+
+  const renderSpecCards = () => {
+    const mainRows = sheinSpecMainRows.filter((r) => r?.name && r?.value);
+    const otherRows = sheinSpecOtherRows.filter((r) => r?.name && r?.value);
+    if (sheinSpecMainSummary) {
+      if (!mainRows.length) {
+        sheinSpecMainSummary.textContent = "未选择";
+        sheinSpecMainSummary.className = "text-xs text-slate-400";
+      } else {
+        sheinSpecMainSummary.innerHTML = mainRows
+          .map(
+            (r) =>
+              `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-[11px] text-slate-600 mr-1 mb-1">${escapeHtml(
+                `${r.name}: ${r.value}`,
+              )}</span>`,
+          )
+          .join("");
+      }
+    }
+    if (sheinSpecOtherSummary) {
+      if (!otherRows.length) {
+        sheinSpecOtherSummary.textContent = "未选择";
+        sheinSpecOtherSummary.className = "text-xs text-slate-400";
+      } else {
+        sheinSpecOtherSummary.innerHTML = otherRows
+          .map(
+            (r) =>
+              `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-[11px] text-slate-600 mr-1 mb-1">${escapeHtml(
+                `${r.name}: ${r.value}`,
+              )}</span>`,
+          )
+          .join("");
+      }
+    }
+
+    if (sheinSpecMainCard) {
+      sheinSpecMainCard.classList.toggle("attr-card-done", mainRows.length > 0);
+    }
+    if (sheinSpecOtherCard) {
+      sheinSpecOtherCard.classList.toggle("attr-card-done", otherRows.length > 0);
+    }
+
+    if (sheinSpecMsg) {
+      const hasData = sheinSpecMainList.length || sheinSpecOtherList.length;
+      sheinSpecMsg.textContent = hasData ? "主规格必选，最多 3 个属性值" : "模板未返回规格信息";
+    }
+  };
+
+  const buildSpecDefines = (rows, list) => {
+    const map = new Map();
+    rows.forEach((row) => {
+      const name = String(row?.name ?? "").trim();
+      const value = String(row?.value ?? "").trim();
+      if (!name || !value) return;
+      const src = list.find((it) => it.name === name);
+      const valueItem = src?.values?.find((it) => String(it?.label ?? "") === value);
+      const typeId = src?.id || name;
+      const key = String(typeId || name);
+      if (!map.has(key)) {
+        map.set(key, { type_id: typeId, type_name: name, spec_value_ids: [], spec_value_vals: [] });
+      }
+      const entry = map.get(key);
+      const valId = valueItem?.id ?? value;
+      if (!entry.spec_value_ids.includes(valId)) entry.spec_value_ids.push(valId);
+      if (!entry.spec_value_vals.includes(value)) entry.spec_value_vals.push(value);
+    });
+    return Array.from(map.values());
+  };
+
+  const syncSpecDefines = () => {
+    if (!specDefinesInput) return;
+    const mainDefines = buildSpecDefines(sheinSpecMainRows, sheinSpecMainList);
+    const otherDefines = buildSpecDefines(sheinSpecOtherRows, sheinSpecOtherList);
+    const all = [...mainDefines, ...otherDefines];
+    specDefinesInput.value = all.length ? JSON.stringify(all, null, 2) : "";
   };
 
   const SHEIN_MODE_LABELS = {
@@ -320,6 +456,150 @@ export function setupShein() {
     });
   };
 
+  const openSpecModal = (kind) => {
+    if (!attrModal || !attrModalBody) return;
+    if (attrModal.parentElement !== document.body) {
+      document.body.appendChild(attrModal);
+    }
+    const isMain = kind === "main";
+    activeModalMode = "spec";
+    activeSpecKind = isMain ? "main" : "other";
+    if (attrModalTitle) attrModalTitle.textContent = isMain ? "主规格" : "次规格";
+    if (attrModalSubtitle) {
+      attrModalSubtitle.textContent = isMain ? "必选 1-3 个属性值" : "可选";
+    }
+    const specList = getSpecList(activeSpecKind);
+    const maxRows = isMain ? 3 : Math.max(1, Math.min(10, specList.length || 3));
+    const existingRows = getSpecRows(activeSpecKind);
+    const rowsState = existingRows.length ? existingRows.map((r) => ({ name: r?.name ?? "", value: r?.value ?? "" })) : [{ name: "", value: "" }];
+
+    const buildNameOptions = (selectedName) => {
+      const placeholder = `<option value="" ${selectedName ? "" : "selected"}>请选择名称</option>`;
+      const opts = specList
+        .map(
+          (item) =>
+            `<option value="${escapeHtml(item.name)}" ${item.name === selectedName ? "selected" : ""}>${escapeHtml(
+              item.name,
+            )}</option>`,
+        )
+        .join("");
+      return placeholder + opts;
+    };
+
+    const getValuesForName = (name) => {
+      if (!name) return [];
+      const item = specList.find((it) => it.name === name);
+      return item?.values || [];
+    };
+
+    const buildValueOptions = (selectedValue, name) => {
+      const values = getValuesForName(name);
+      if (!values.length) {
+        return `<option value="" selected>暂无可选内容</option>`;
+      }
+      const placeholder = `<option value="" ${selectedValue ? "" : "selected"}>请选择内容</option>`;
+      const opts = values
+        .map((v) => {
+          const label = String(v?.label ?? "").trim();
+          if (!label) return "";
+          return `<option value="${escapeHtml(label)}" ${label === selectedValue ? "selected" : ""}>${escapeHtml(
+            label,
+          )}</option>`;
+        })
+        .join("");
+      return placeholder + opts;
+    };
+
+    attrModalBody.innerHTML = `
+      <div class="space-y-3">
+        <div class="grid grid-cols-3 gap-2 text-[11px] text-slate-500 font-semibold">
+          <div>名称</div>
+          <div>内容</div>
+          <div class="text-right">操作</div>
+        </div>
+        <div id="shein-spec-modal-msg" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl"></div>
+        <div id="shein-spec-rows" class="space-y-2"></div>
+        <div class="flex items-center justify-between">
+          <div class="text-[11px] text-slate-400">最多可添加 ${maxRows} 行</div>
+          <button id="shein-spec-add" type="button" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <i class="fas fa-plus mr-1"></i>添加行
+          </button>
+        </div>
+      </div>
+    `;
+
+    const rowsWrap = attrModalBody.querySelector("#shein-spec-rows");
+    const addBtn = attrModalBody.querySelector("#shein-spec-add");
+    const msgEl = attrModalBody.querySelector("#shein-spec-modal-msg");
+
+    const renderRows = () => {
+      if (!rowsWrap) return;
+      rowsWrap.innerHTML = "";
+      rowsState.forEach((row, idx) => {
+        const rowEl = document.createElement("div");
+        rowEl.dataset.specRow = "1";
+        rowEl.className = "grid grid-cols-3 gap-2 items-center";
+        rowEl.innerHTML = `
+          <select data-spec-name="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
+            ${buildNameOptions(String(row?.name ?? "").trim())}
+          </select>
+          <select data-spec-value="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
+            ${buildValueOptions(String(row?.value ?? "").trim(), String(row?.name ?? "").trim())}
+          </select>
+          <div class="flex justify-end">
+            <button type="button" data-spec-del="1" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        `;
+        rowsWrap.appendChild(rowEl);
+        const nameSelect = rowEl.querySelector("[data-spec-name]");
+        const valueSelect = rowEl.querySelector("[data-spec-value]");
+        if (nameSelect) {
+          nameSelect.addEventListener("change", () => {
+            row.name = String(nameSelect.value || "").trim();
+            row.value = "";
+            if (msgEl) msgEl.classList.add("hidden");
+            renderRows();
+          });
+        }
+        if (valueSelect) {
+          valueSelect.addEventListener("change", () => {
+            row.value = String(valueSelect.value || "").trim();
+            if (msgEl) msgEl.classList.add("hidden");
+          });
+        }
+        const delBtn = rowEl.querySelector("[data-spec-del]");
+        if (delBtn) {
+          delBtn.disabled = rowsState.length <= 1;
+          delBtn.classList.toggle("opacity-50", rowsState.length <= 1);
+          delBtn.addEventListener("click", () => {
+            if (rowsState.length <= 1) return;
+            rowsState.splice(idx, 1);
+            renderRows();
+            if (addBtn) addBtn.disabled = rowsState.length >= maxRows;
+          });
+        }
+      });
+    };
+
+    renderRows();
+    if (addBtn) {
+      addBtn.disabled = rowsState.length >= maxRows;
+      addBtn.addEventListener("click", () => {
+        if (rowsState.length >= maxRows) return;
+        rowsState.push({ name: "", value: "" });
+        renderRows();
+        addBtn.disabled = rowsState.length >= maxRows;
+      });
+    }
+
+    attrModalBody.scrollTop = 0;
+    attrModal.classList.remove("hidden");
+    attrModal.hidden = false;
+    attrModal.style.display = "flex";
+  };
+
 
 
   const openAttrModal = (attr) => {
@@ -327,6 +607,8 @@ export function setupShein() {
     if (attrModal.parentElement !== document.body) {
       document.body.appendChild(attrModal);
     }
+    activeModalMode = "attr";
+    activeSpecKind = "";
     activeAttrKey = attr?.key || "";
     const modeLabel = SHEIN_MODE_LABELS[attr?.mode] || "\u5176\u4ed6";
     const optionCount = attr?.options?.length || 0;
@@ -525,9 +807,44 @@ export function setupShein() {
     attrModal.hidden = true;
     attrModal.style.display = "none";
     activeAttrKey = "";
+    activeModalMode = "attr";
+    activeSpecKind = "";
   };
 
   const commitAttrModal = () => {
+    if (activeModalMode === "spec") {
+      const kind = activeSpecKind || "main";
+      const isMain = kind === "main";
+      const rows = Array.from(attrModalBody?.querySelectorAll("[data-spec-row]") || []).map((row) => {
+        const name = String(row.querySelector("[data-spec-name]")?.value ?? "").trim();
+        const value = String(row.querySelector("[data-spec-value]")?.value ?? "").trim();
+        return { name, value };
+      });
+      const cleaned = rows.filter((r) => r.name && r.value);
+      if (isMain) {
+        if (!cleaned.length) {
+          const msgEl = attrModalBody?.querySelector("#shein-spec-modal-msg");
+          if (msgEl) {
+            msgEl.textContent = "主规格至少选择 1 个属性值";
+            msgEl.classList.remove("hidden");
+          }
+          return;
+        }
+        if (cleaned.length > 3) {
+          const msgEl = attrModalBody?.querySelector("#shein-spec-modal-msg");
+          if (msgEl) {
+            msgEl.textContent = "主规格最多选择 3 个属性值";
+            msgEl.classList.remove("hidden");
+          }
+          return;
+        }
+      }
+      setSpecRows(kind, cleaned);
+      closeAttrModal();
+      renderSpecCards();
+      syncSpecDefines();
+      return;
+    }
     const attr = sheinAttrByKey.get(activeAttrKey);
     if (!attr || !attrModalBody) return;
     if (attr.mode === "0") {
@@ -784,6 +1101,12 @@ export function setupShein() {
     sheinAttrSelections.clear();
     sheinAttrList = [];
     sheinAttrByKey = new Map();
+    sheinSpecMainList = [];
+    sheinSpecOtherList = [];
+    sheinSpecMainRows = [];
+    sheinSpecOtherRows = [];
+    renderSpecCards();
+    syncSpecDefines();
     if (templatePre) setPre(templatePre, "");
     if (templateForm) templateForm.innerHTML = "";
     if (uploadPre) setPre(uploadPre, "");
@@ -954,6 +1277,12 @@ export function setupShein() {
         sheinAttrSelections.clear();
         sheinAttrList = [];
         sheinAttrByKey = new Map();
+        sheinSpecMainList = [];
+        sheinSpecOtherList = [];
+        sheinSpecMainRows = [];
+        sheinSpecOtherRows = [];
+        renderSpecCards();
+        syncSpecDefines();
         if (templateForm) templateForm.innerHTML = "";
         fetchTemplate(nextTypeId, { silent: false });
       }
@@ -977,6 +1306,12 @@ export function setupShein() {
       openAttrModal(attr);
     });
   }
+  if (sheinSpecMainCard) {
+    sheinSpecMainCard.addEventListener("click", () => openSpecModal("main"));
+  }
+  if (sheinSpecOtherCard) {
+    sheinSpecOtherCard.addEventListener("click", () => openSpecModal("other"));
+  }
   if (!document.body.dataset.sheinAttrBound) {
     document.body.dataset.sheinAttrBound = "1";
     document.addEventListener(
@@ -999,6 +1334,14 @@ export function setupShein() {
   if (attrModalConfirm) attrModalConfirm.addEventListener("click", commitAttrModal);
   if (attrModalClear) {
     attrModalClear.addEventListener("click", () => {
+      if (activeModalMode === "spec") {
+        if (activeSpecKind === "main") sheinSpecMainRows = [];
+        if (activeSpecKind === "other") sheinSpecOtherRows = [];
+        closeAttrModal();
+        renderSpecCards();
+        syncSpecDefines();
+        return;
+      }
       if (activeAttrKey) sheinAttrSelections.delete(activeAttrKey);
       closeAttrModal();
       renderSheinTemplateForm();
@@ -1048,6 +1391,13 @@ export function setupShein() {
       lastTemplateCatId = tid;
       if (!silent) setTemplateMsg("获取成功");
       setPre(templatePre, res);
+      const data = res?.data || {};
+      sheinSpecMainList = normalizeSpecList(data?.pro_main_arr);
+      sheinSpecOtherList = normalizeSpecList(data?.pro_other_arr);
+      sheinSpecMainRows = [];
+      sheinSpecOtherRows = [];
+      renderSpecCards();
+      syncSpecDefines();
       renderSheinTemplateForm();
     } catch {
       if (!silent) setTemplateMsg("网络异常");
@@ -1075,8 +1425,14 @@ export function setupShein() {
       sheinAttrSelections.clear();
       sheinAttrList = [];
       sheinAttrByKey = new Map();
+      sheinSpecMainList = [];
+      sheinSpecOtherList = [];
+      sheinSpecMainRows = [];
+      sheinSpecOtherRows = [];
       if (templatePre) setPre(templatePre, "");
       if (templateForm) templateForm.innerHTML = "";
+      renderSpecCards();
+      syncSpecDefines();
       setTemplateMsg("");
       updateStepChecks();
     });
@@ -1187,6 +1543,8 @@ export function setupShein() {
   });
 
   renderImagePreview();
+  renderSpecCards();
+  syncSpecDefines();
   setStep(1);
   load();
 }

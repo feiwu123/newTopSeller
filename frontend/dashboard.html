@@ -1369,6 +1369,55 @@
                   <div id="shein-template-msg" class="hidden text-xs bg-slate-50 border border-slate-200 text-slate-600 px-3 py-2 rounded-xl"></div>
                   <pre id="shein-template" class="text-[11px] bg-slate-50 border border-slate-100 rounded-xl p-3 overflow-auto max-h-48 whitespace-pre-wrap"></pre>
                   <div id="shein-template-form" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+                  <div id="shein-spec-block" class="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      <i class="fas fa-layer-group text-slate-500"></i>
+                      <span>规格及供应信息</span>
+                      <span id="shein-spec-msg" class="text-[11px] text-slate-400">主规格必选，最多 3 个属性值</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <button
+                        id="shein-spec-main-card"
+                        type="button"
+                        class="relative overflow-hidden rounded-3xl border-2 border-slate-100 bg-white p-5 pl-6 text-left w-full hover:border-accent/30 transition-colors"
+                      >
+                        <div class="absolute left-2 top-4 bottom-4 w-1 rounded-full bg-emerald-500"></div>
+                        <div class="absolute -right-8 -top-10 text-slate-100 text-6xl rotate-12 pointer-events-none">
+                          <i class="fas fa-star"></i>
+                        </div>
+                        <div class="pl-2 space-y-2">
+                          <div class="flex items-start gap-2 text-base font-black text-slate-900">
+                            <i class="fas fa-cube text-slate-600 mt-0.5"></i>
+                            <span>主规格</span>
+                          </div>
+                          <div id="shein-spec-main-summary" class="text-xs text-slate-400">未选择</div>
+                          <div class="flex justify-end">
+                            <span id="shein-spec-main-badge" class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-black">必选 1-3</span>
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        id="shein-spec-other-card"
+                        type="button"
+                        class="relative overflow-hidden rounded-3xl border-2 border-slate-100 bg-white p-5 pl-6 text-left w-full hover:border-accent/30 transition-colors"
+                      >
+                        <div class="absolute left-2 top-4 bottom-4 w-1 rounded-full bg-slate-400/70"></div>
+                        <div class="absolute -right-8 -top-10 text-slate-100 text-6xl rotate-12 pointer-events-none">
+                          <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="pl-2 space-y-2">
+                          <div class="flex items-start gap-2 text-base font-black text-slate-900">
+                            <i class="fas fa-cubes text-slate-600 mt-0.5"></i>
+                            <span>次规格</span>
+                          </div>
+                          <div id="shein-spec-other-summary" class="text-xs text-slate-400">未选择</div>
+                          <div class="flex justify-end">
+                            <span id="shein-spec-other-badge" class="text-[10px] text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full font-black">可选</span>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
                   <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     <div>
                       <label class="text-xs text-slate-500">sheinOthers（普通属性 JSON 字符串）</label>

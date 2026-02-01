@@ -18,7 +18,6 @@ from orders.orders_api import orders_bp
 from platforms.shein_api import shein_bp
 from platforms.temu_api import temu_bp
 from platforms.tiktok_api import tiktok_bp
-from alibaba_tool.alibaba_tool_api import alibaba_tool_bp
 from seller.merchants_logistics_api import merchants_logistics_bp
 from seller.seller_shop_info_api import seller_shop_info_bp
 from token_api import token_bp
@@ -56,7 +55,15 @@ def create_app() -> Flask:
     app.register_blueprint(tiktok_bp)
     app.register_blueprint(shein_bp)
     app.register_blueprint(temu_bp)
-    app.register_blueprint(alibaba_tool_bp)
+    # Optional: Alibaba tool module may be absent in some deployments.
+    disable_alibaba = os.getenv("DISABLE_ALIBABA_TOOL", "").strip().lower() in {"1", "true", "yes", "y"}
+    if not disable_alibaba:
+        try:
+            from alibaba_tool.alibaba_tool_api import alibaba_tool_bp  # type: ignore
+        except Exception as exc:
+            app.logger.warning("Alibaba tool disabled (import failed): %s", exc)
+        else:
+            app.register_blueprint(alibaba_tool_bp)
     app.register_blueprint(merchants_logistics_bp)
     app.register_blueprint(seller_shop_info_bp)
     app.register_blueprint(wholesales_bp)
