@@ -376,7 +376,7 @@ export function setupTikTok() {
     if (!raw.startsWith("upload-tiktok")) return "";
     const q = raw.split("?")[1] || "";
     const params = new URLSearchParams(q);
-    return params.get("mode") === "upload" ? "upload" : "";
+    return params.get("mode") === "upload" ? "upload" : "list";
   };
 
   const setSubView = (mode, opts) => {
@@ -414,7 +414,16 @@ export function setupTikTok() {
     }
   };
 
-  if (goUploadBtn) goUploadBtn.addEventListener("click", () => setSubView("upload", { updateHash: true }));
+  if (goUploadBtn) {
+    goUploadBtn.addEventListener("click", () => {
+      try {
+        window.sessionStorage.removeItem("topm:tiktok-edit-id");
+      } catch {
+        // ignore
+      }
+      setSubView("upload", { updateHash: true });
+    });
+  }
   if (backToListBtn) backToListBtn.addEventListener("click", () => setSubView("list", { updateHash: true }));
   setSubView(parseSubViewFromHash() || getSubView(), { updateHash: false });
   window.addEventListener("hashchange", () => {
@@ -665,7 +674,7 @@ export function setupTikTok() {
 
   draftState = loadDraft();
   pendingDraft = draftState;
-  if (draftState && routeFromHash() === "upload-tiktok") {
+  if (draftState && parseSubViewFromHash() === "upload") {
     setSubView("upload", { updateHash: false });
   }
   const draftCatState = draftState?.cat ? draftState.cat : null;
@@ -1716,6 +1725,14 @@ export function setupTikTok() {
           return wrap(inner);
         })();
 
+        const editBtn = `
+          <button type="button" class="tiktok-edit inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-black text-slate-700" data-tiktok-edit-id="${escapeHtml(
+            goodsId
+          )}">
+            <i class="fas fa-pen-to-square text-slate-500"></i>
+            <span>编辑</span>
+          </button>
+        `;
         const toggleBtn = `
           <button type="button" class="tiktok-toggle-sale inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-black text-slate-700" data-goods-id="${escapeHtml(
             goodsId
@@ -1724,6 +1741,7 @@ export function setupTikTok() {
             <span>${onSale === "1" ? "下架" : "上架"}</span>
           </button>
         `;
+        const actions = `<div class="flex items-center justify-end gap-2">${editBtn}${toggleBtn}</div>`;
 
         return `
           <tr class="table-row-hover ${border} transition">
@@ -1746,7 +1764,7 @@ export function setupTikTok() {
             <td class="px-6 py-4 whitespace-nowrap">${reviewBadge}</td>
             <td class="px-6 py-4 text-right text-xs font-black text-slate-900">${escapeHtml(price)}</td>
             <td class="px-6 py-4 text-xs text-slate-500">${escapeHtml(time)}</td>
-            <td class="px-6 py-4 text-right">${toggleBtn}</td>
+            <td class="px-6 py-4 text-right">${actions}</td>
           </tr>
         `;
       })
@@ -1852,6 +1870,19 @@ export function setupTikTok() {
 
   if (listTbody) {
     listTbody.addEventListener("click", async (e) => {
+      const editBtn = e.target?.closest?.(".tiktok-edit");
+      if (editBtn) {
+        const goodsId = String(editBtn.dataset.tiktokEditId ?? "").trim();
+        if (!goodsId) return;
+        try {
+          window.sessionStorage.setItem("topm:tiktok-edit-id", goodsId);
+        } catch {
+          // ignore
+        }
+        setSubView("upload", { updateHash: true });
+        return;
+      }
+
       const btn = e.target?.closest?.(".tiktok-toggle-sale");
       if (!btn) return;
       const pending = btn.dataset.pending === "1";

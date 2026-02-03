@@ -81,6 +81,7 @@ export function setupShein() {
   const sheinGoodsAttrInput = document.getElementById("shein-goods-attr");
   const specDefinesInput = document.getElementById("shein-spec-defines");
   const sheinSpecBlock = document.getElementById("shein-spec-block");
+  const sheinSpecExtras = sheinOthersInput?.closest(".grid");
   const sheinSpecMsg = document.getElementById("shein-spec-msg");
   const sheinSpecMainCard = document.getElementById("shein-spec-main-card");
   const sheinSpecMainSummary = document.getElementById("shein-spec-main-summary");
@@ -89,11 +90,10 @@ export function setupShein() {
   const sheinSpecOtherSummary = document.getElementById("shein-spec-other-summary");
   const sheinSpecOtherBadge = document.getElementById("shein-spec-other-badge");
 
-  const imageTypeSelect = document.getElementById("shein-image-type");
-  const fileInput = document.getElementById("shein-file");
-  const uploadBtn = document.getElementById("shein-upload");
-  const uploadPre = document.getElementById("shein-upload-result");
   const imagePreview = document.getElementById("shein-image-preview");
+  const supplyBlock = document.getElementById("shein-supply-block");
+  const supplyTable = document.getElementById("shein-supply-table");
+  const supplyMsg = document.getElementById("shein-supply-msg");
 
   const goodsNameInput = document.getElementById("shein-goods-name");
   const goodsSnInput = document.getElementById("shein-goods-sn");
@@ -133,13 +133,8 @@ export function setupShein() {
   let sheinSpecOtherList = [];
   let sheinSpecMainRows = [];
   let sheinSpecOtherRows = [];
-  const uploadBuckets = {
-    "1": [],
-    "2": [],
-    "5": [],
-    "6": [],
-    "7": [],
-  };
+  let sheinImageBuckets = new Map();
+  let sheinSupplyRows = new Map();
 
   const setSummary = (t) => {
     if (!summary) return;
@@ -162,16 +157,17 @@ export function setupShein() {
     return v && v !== "-" ? v : "";
   };
 
-  const setTemplateMsg = (msg) => {
-    if (!templateMsg) return;
-    if (!msg) {
-      templateMsg.classList.add("hidden");
-      templateMsg.textContent = "";
-      return;
-    }
-    templateMsg.classList.remove("hidden");
-    templateMsg.textContent = msg;
-  };
+  const setTemplateMsg = () => {};
+  if (templateMsg) {
+    templateMsg.hidden = true;
+    templateMsg.classList.add("hidden");
+    templateMsg.textContent = "";
+  }
+  if (templatePre) {
+    templatePre.hidden = true;
+    templatePre.classList.add("hidden");
+    templatePre.textContent = "";
+  }
 
   const parseJsonMaybe = (raw) => {
     const v = String(raw ?? "").trim();
@@ -303,7 +299,368 @@ export function setupShein() {
       const hasData = sheinSpecMainList.length || sheinSpecOtherList.length;
       sheinSpecMsg.textContent = hasData ? "主规格必选，最多 3 个属性值" : "模板未返回规格信息";
     }
+    updateStep2Availability();
   };
+
+  const getMainSpecRows = () =>
+    sheinSpecMainRows.filter((row) => String(row?.name ?? "").trim() && String(row?.value ?? "").trim());
+
+  const getFirstMainSpecRow = () => {
+    const rows = getMainSpecRows();
+    return rows.length ? [rows[0]] : [];
+  };
+
+  const buildSpecKey = (row) => `${String(row?.name ?? "").trim()}::${String(row?.value ?? "").trim()}`;
+
+  const IMAGE_TYPE_META = {
+    "2": {
+      label: "细节图",
+      required: true,
+      max: 11,
+      ratios: [1, 3 / 4, 4 / 5, 13 / 16],
+      min: 900,
+      maxSize: 2200,
+    },
+    "5": { label: "方形图", required: true, max: 1, ratios: [1], min: 900, maxSize: 2200 },
+    "6": { label: "色块图", required: false, max: 10, ratios: [1], min: 80, maxSize: 80 },
+    "7": { label: "详情图", required: false, max: 10, ratios: [3 / 4], min: 900 },
+  };
+
+  const syncSheinImageBuckets = () => {
+    const rows = getFirstMainSpecRow();
+    const next = new Map();
+    rows.forEach((row) => {
+      const key = buildSpecKey(row);
+      const existing = sheinImageBuckets.get(key);
+      if (existing) {
+        existing.name = String(row?.name ?? "").trim();
+        existing.value = String(row?.value ?? "").trim();
+        next.set(key, existing);
+        return;
+      }
+      next.set(key, {
+        name: String(row?.name ?? "").trim(),
+        value: String(row?.value ?? "").trim(),
+        images: { "2": [], "5": [], "6": [], "7": [] },
+      });
+    });
+    sheinImageBuckets = next;
+  };
+
+  const setImageHint = (msg, isError) => {
+    if (!stepHint3) return;
+    if (!msg) {
+      stepHint3.textContent = "上传细节/方形/色块/详情图";
+      stepHint3.classList.remove("text-rose-500");
+      return;
+    }
+    stepHint3.textContent = msg;
+    stepHint3.classList.toggle("text-rose-500", Boolean(isError));
+  };
+
+  const hasValidMainSpec = () => getMainSpecRows().length > 0;
+
+  const updateStep2Availability = () => {
+    if (!next2) return;
+    const ok = hasValidMainSpec();
+    next2.disabled = !ok;
+    next2.classList.toggle("opacity-50", !ok);
+    next2.classList.toggle("cursor-not-allowed", !ok);
+    if (!ok) setImageHint("请先选择主规格名称和内容", true);
+    else setImageHint("");
+  };
+
+  const renderSheinImageCards = () => {
+    if (!imagePreview) return;
+    syncSheinImageBuckets();
+    const rows = getFirstMainSpecRow();
+    if (!rows.length) {
+      imagePreview.innerHTML = '<div class="text-xs text-slate-400">请先选择主规格名称和内容。</div>';
+      return;
+    }
+
+    const blocks = rows
+      .map((row) => {
+        const key = buildSpecKey(row);
+        const bucket = sheinImageBuckets.get(key);
+        const header = `主规格：${escapeHtml(row.name)} · ${escapeHtml(row.value)}`;
+        const sections = Object.entries(IMAGE_TYPE_META)
+          .map(([type, meta]) => {
+            const list = bucket?.images?.[type] || [];
+            const requiredTag = meta.required ? '<span class="text-rose-500 font-bold">必传</span>' : "可选";
+            const maxText = meta.max ? `最多 ${meta.max} 张` : "";
+            const ratioText =
+              type === "2"
+                ? "比例 1:1/3:4/4:5/13:16"
+                : type === "5"
+                  ? "比例 1:1"
+                  : type === "6"
+                    ? "80×80"
+                    : "比例 3:4";
+            const sizeText =
+              type === "6"
+                ? "像素 80×80"
+                : type === "7"
+                  ? "像素 >900"
+                  : "像素 900-2200";
+            const listHtml = list.length
+              ? `<div class="flex flex-wrap gap-2">` +
+                list
+                  .map(
+                    (it, idx) => `
+                      <div class="inline-flex items-center gap-2 text-[11px] text-slate-600">
+                        <button type="button" data-view-image="${escapeHtml(it.img_url)}" class="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-white">
+                          <img src="${escapeHtml(it.img_url)}" alt="img" class="w-full h-full object-cover" />
+                        </button>
+                        <button type="button" data-image-remove="1" data-spec-key="${escapeHtml(
+                          key,
+                        )}" data-image-type="${escapeHtml(type)}" data-image-idx="${idx}" class="text-rose-500 hover:text-rose-600">
+                          删除
+                        </button>
+                      </div>
+                    `,
+                  )
+                  .join("") +
+                `</div>`
+              : '<div class="text-[11px] text-slate-400">暂无图片</div>';
+
+            return `
+              <div class="rounded-2xl border border-slate-100 bg-white p-3 space-y-2" data-image-card="1" data-spec-key="${escapeHtml(
+                key,
+              )}" data-image-type="${escapeHtml(type)}">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-xs font-bold text-slate-700">${escapeHtml(meta.label)}</div>
+                  <div class="text-[11px] text-slate-400">${requiredTag} ${ratioText} ${sizeText} ${maxText}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="file" accept="image/png,image/jpeg" multiple data-image-input="1" class="hidden" />
+                  <button type="button" data-image-upload="1" class="px-3 py-2 rounded-xl bg-slate-900 text-white text-[11px] font-semibold hover:bg-slate-800">
+                    <i class="fas fa-upload mr-1"></i>上传
+                  </button>
+                  <span class="text-[11px] text-slate-400">上传成功后展示在下方。</span>
+                </div>
+                <div data-image-msg="1" class="hidden text-[11px] text-rose-500"></div>
+                <div class="space-y-2">${listHtml}</div>
+              </div>
+            `;
+          })
+          .join("");
+        return `
+          <div class="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+            <div class="text-sm font-bold text-slate-800">${header}</div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">${sections}</div>
+          </div>
+        `;
+      })
+      .join("");
+
+    imagePreview.innerHTML = blocks;
+  };
+
+  const syncSheinImageJson = () => {
+    const rows = getFirstMainSpecRow();
+    const buildPayload = (type) =>
+      rows
+        .map((row) => {
+          const key = buildSpecKey(row);
+          const bucket = sheinImageBuckets.get(key);
+          const list = (bucket?.images?.[type] || []).map((it) => ({ img_url: it.img_url, img_id: it.img_id || "0" }));
+          return list.length ? { spec_name: row.name, spec_value: row.value, images: list } : null;
+        })
+        .filter(Boolean);
+
+    if (albumImagesInput) albumImagesInput.value = JSON.stringify(buildPayload("2"), null, 2);
+    if (squareImagesInput) squareImagesInput.value = JSON.stringify(buildPayload("5"), null, 2);
+    if (colorBlockImagesInput) colorBlockImagesInput.value = JSON.stringify(buildPayload("6"), null, 2);
+    if (detailImagesInput) detailImagesInput.value = JSON.stringify(buildPayload("7"), null, 2);
+  };
+
+  const buildSupplyKey = (main, other) => {
+    const mainKey = `${String(main?.name ?? "").trim()}::${String(main?.value ?? "").trim()}`;
+    const otherKey = other ? `${String(other?.name ?? "").trim()}::${String(other?.value ?? "").trim()}` : "";
+    return otherKey ? `${mainKey}||${otherKey}` : mainKey;
+  };
+
+  const syncSupplyRows = () => {
+    const mainRows = getMainSpecRows();
+    const otherRows = sheinSpecOtherRows.filter(
+      (row) => String(row?.name ?? "").trim() && String(row?.value ?? "").trim(),
+    );
+    const next = new Map();
+    if (otherRows.length) {
+      mainRows.forEach((main) => {
+        otherRows.forEach((other) => {
+          const key = buildSupplyKey(main, other);
+          const existing = sheinSupplyRows.get(key) || {};
+          next.set(key, { main, other, price: existing.price || "", stock: existing.stock || "", sn: existing.sn || "" });
+        });
+      });
+    } else {
+      mainRows.forEach((main) => {
+        const key = buildSupplyKey(main, null);
+        const existing = sheinSupplyRows.get(key) || {};
+        next.set(key, { main, other: null, price: existing.price || "", stock: existing.stock || "", sn: existing.sn || "" });
+      });
+    }
+    sheinSupplyRows = next;
+  };
+
+  const syncSupplyJson = () => {
+    const rows = Array.from(sheinSupplyRows.values());
+    const prices = rows.map((row) => row.price);
+    const stocks = rows.map((row) => row.stock);
+    const sns = rows.map((row) => row.sn);
+    if (productPriceInput) productPriceInput.value = JSON.stringify(prices, null, 2);
+    if (productNumberInput) productNumberInput.value = JSON.stringify(stocks, null, 2);
+    if (productSnInput) productSnInput.value = JSON.stringify(sns, null, 2);
+  };
+
+  const renderSupplyTable = () => {
+    if (!supplyTable || !supplyBlock) return;
+    syncSupplyRows();
+    const rows = Array.from(sheinSupplyRows.values());
+    if (supplyMsg) {
+      supplyMsg.classList.add("hidden");
+      supplyMsg.textContent = "";
+    }
+    if (!rows.length) {
+      supplyTable.innerHTML = '<div class="text-xs text-slate-400">请先选择主规格名称和内容。</div>';
+      return;
+    }
+    const mainName = String(rows[0]?.main?.name ?? "主规格").trim() || "主规格";
+    const otherName = rows[0]?.other ? String(rows[0]?.other?.name ?? "次规格").trim() || "次规格" : "";
+    const headerOther = otherName
+      ? `<th class="px-4 py-2 text-xs font-semibold text-slate-500">${escapeHtml(otherName)}</th>`
+      : "";
+
+    const bodyHtml = rows
+      .map((row, idx) => {
+        const mainValue = `${row.main.name}：${row.main.value}`;
+        const otherValue = row.other ? `${row.other.name}：${row.other.value}` : "";
+        const rowKey = buildSupplyKey(row.main, row.other);
+        const otherCell = otherName
+          ? `<td class="px-4 py-2 text-xs text-slate-700 whitespace-nowrap">${escapeHtml(otherValue)}</td>`
+          : "";
+        return `
+          <tr class="border-b border-slate-100">
+            <td class="px-4 py-2 text-xs text-slate-700 whitespace-nowrap">${escapeHtml(mainValue)}</td>
+            ${otherCell}
+            <td class="px-4 py-2">
+              <input data-supply-field="price" data-supply-idx="${idx}" value="${escapeHtml(
+                row.price || "",
+              )}" data-supply-key="${escapeHtml(
+          rowKey,
+        )}" class="w-32 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" placeholder="Shop price" />
+            </td>
+            <td class="px-4 py-2">
+              <input data-supply-field="stock" data-supply-idx="${idx}" value="${escapeHtml(
+                row.stock || "",
+              )}" data-supply-key="${escapeHtml(
+          rowKey,
+        )}" class="w-28 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" placeholder="stock" />
+            </td>
+            <td class="px-4 py-2">
+              <input data-supply-field="sn" data-supply-idx="${idx}" value="${escapeHtml(
+                row.sn || "",
+              )}" data-supply-key="${escapeHtml(
+          rowKey,
+        )}" class="w-36 px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white" placeholder="商品货号" />
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    supplyTable.innerHTML = `
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="text-xs text-slate-400 border-b border-slate-100 bg-slate-50/60">
+            <th class="px-4 py-2 font-semibold text-slate-500">${escapeHtml(mainName)}</th>
+            ${headerOther}
+            <th class="px-4 py-2 font-semibold text-slate-500">Shop price<span class="text-rose-500">*</span></th>
+            <th class="px-4 py-2 font-semibold text-slate-500">stock<span class="text-rose-500">*</span></th>
+            <th class="px-4 py-2 font-semibold text-slate-500">商品货号<span class="text-rose-500">*</span></th>
+          </tr>
+        </thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    `;
+
+    if (!supplyTable.dataset.bound) {
+      supplyTable.dataset.bound = "1";
+      supplyTable.addEventListener("input", (e) => {
+        const input = e.target;
+        if (!input?.matches?.("[data-supply-field]")) return;
+        const field = String(input.dataset.supplyField || "");
+        const key = String(input.dataset.supplyKey || "");
+        if (!key) return;
+        const row = sheinSupplyRows.get(key);
+        if (!row) return;
+        row[field] = String(input.value || "").trim();
+        sheinSupplyRows.set(key, row);
+        syncSupplyJson();
+      });
+    }
+
+    syncSupplyJson();
+  };
+
+  const validateSheinImagesReady = () => {
+    syncSheinImageBuckets();
+    const rows = getFirstMainSpecRow();
+    if (!rows.length) return { ok: false, msg: "请先选择主规格名称和内容。" };
+    for (const row of rows) {
+      const key = buildSpecKey(row);
+      const bucket = sheinImageBuckets.get(key);
+      const detailCount = bucket?.images?.["2"]?.length || 0;
+      const squareCount = bucket?.images?.["5"]?.length || 0;
+      if (detailCount < 1) {
+        return { ok: false, msg: `主规格 ${row.name}-${row.value} 需要至少 1 张细节图。` };
+      }
+      if (squareCount < 1) {
+        return { ok: false, msg: `主规格 ${row.name}-${row.value} 需要至少 1 张方形图。` };
+      }
+    }
+    return { ok: true, msg: "" };
+  };
+
+  const validateSheinSupplyReady = () => {
+    syncSupplyRows();
+    const rows = Array.from(sheinSupplyRows.values());
+    if (!rows.length) return { ok: false, msg: "请先选择主规格名称和内容。" };
+    const missing = rows.find((row) => !(row.price && row.stock && row.sn));
+    if (missing) {
+      const main = `${missing.main?.name || "主规格"}-${missing.main?.value || ""}`;
+      const other = missing.other ? `${missing.other?.name || "次规格"}-${missing.other?.value || ""}` : "";
+      const label = other ? `${main} / ${other}` : main;
+      return { ok: false, msg: `供应信息未填完整：${label}` };
+    }
+    return { ok: true, msg: "" };
+  };
+
+  const setSupplyHint = (msg) => {
+    if (!supplyMsg) return;
+    if (!msg) {
+      supplyMsg.classList.add("hidden");
+      supplyMsg.textContent = "";
+      return;
+    }
+    supplyMsg.classList.remove("hidden");
+    supplyMsg.textContent = msg;
+  };
+
+  const setTemplateVisibility = (show) => {
+    const on = Boolean(show);
+    const toggle = (el) => {
+      if (!el) return;
+      el.hidden = !on;
+      el.classList.toggle("hidden", !on);
+    };
+    toggle(templateForm);
+    toggle(sheinSpecBlock);
+    toggle(sheinSpecExtras);
+  };
+  setTemplateVisibility(false);
 
   const buildSpecDefines = (rows, list) => {
     const map = new Map();
@@ -349,6 +706,7 @@ export function setupShein() {
 
   const renderSheinTemplateForm = () => {
     if (!templateForm) return;
+    setTemplateVisibility(Boolean(templateRes));
     templateForm.className = "grid grid-flow-row-dense gap-6 w-full";
     templateForm.style.gridTemplateColumns = "repeat(auto-fit, minmax(260px, 1fr))";
     templateForm.innerHTML = "";
@@ -469,18 +827,45 @@ export function setupShein() {
       attrModalSubtitle.textContent = isMain ? "必选 1-3 个属性值" : "可选";
     }
     const specList = getSpecList(activeSpecKind);
-    const maxRows = isMain ? 3 : Math.max(1, Math.min(10, specList.length || 3));
+    const maxRows = isMain
+      ? Math.max(1, Math.min(3, specList.length || 3))
+      : Math.max(1, Math.min(10, specList.length || 3));
     const existingRows = getSpecRows(activeSpecKind);
     const rowsState = existingRows.length ? existingRows.map((r) => ({ name: r?.name ?? "", value: r?.value ?? "" })) : [{ name: "", value: "" }];
 
-    const buildNameOptions = (selectedName) => {
+    const getUsedNames = (skipIdx) => {
+      const used = new Set();
+      rowsState.forEach((row, idx) => {
+        if (idx === skipIdx) return;
+        const name = String(row?.name ?? "").trim();
+        if (name) used.add(name);
+      });
+      return used;
+    };
+
+    const getSelectedNameCount = () => {
+      const used = new Set();
+      rowsState.forEach((row) => {
+        const name = String(row?.name ?? "").trim();
+        if (name) used.add(name);
+      });
+      return used.size;
+    };
+
+    const buildNameOptions = (selectedName, idx) => {
+      const used = getUsedNames(idx);
       const placeholder = `<option value="" ${selectedName ? "" : "selected"}>请选择名称</option>`;
       const opts = specList
         .map(
-          (item) =>
-            `<option value="${escapeHtml(item.name)}" ${item.name === selectedName ? "selected" : ""}>${escapeHtml(
-              item.name,
-            )}</option>`,
+          (item) => {
+            const name = String(item.name || "").trim();
+            if (!name) return "";
+            const isSelected = name === selectedName;
+            const disabled = !isSelected && used.has(name);
+            return `<option value="${escapeHtml(name)}" ${isSelected ? "selected" : ""} ${disabled ? "disabled" : ""}>${escapeHtml(
+              name,
+            )}</option>`;
+          },
         )
         .join("");
       return placeholder + opts;
@@ -541,7 +926,7 @@ export function setupShein() {
         rowEl.className = "grid grid-cols-3 gap-2 items-center";
         rowEl.innerHTML = `
           <select data-spec-name="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
-            ${buildNameOptions(String(row?.name ?? "").trim())}
+            ${buildNameOptions(String(row?.name ?? "").trim(), idx)}
           </select>
           <select data-spec-value="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
             ${buildValueOptions(String(row?.value ?? "").trim(), String(row?.name ?? "").trim())}
@@ -577,7 +962,10 @@ export function setupShein() {
             if (rowsState.length <= 1) return;
             rowsState.splice(idx, 1);
             renderRows();
-            if (addBtn) addBtn.disabled = rowsState.length >= maxRows;
+            if (addBtn) {
+              const noMoreNames = getSelectedNameCount() >= specList.length;
+              addBtn.disabled = rowsState.length >= maxRows || noMoreNames;
+            }
           });
         }
       });
@@ -585,12 +973,13 @@ export function setupShein() {
 
     renderRows();
     if (addBtn) {
-      addBtn.disabled = rowsState.length >= maxRows;
+      addBtn.disabled = rowsState.length >= maxRows || getSelectedNameCount() >= specList.length;
       addBtn.addEventListener("click", () => {
-        if (rowsState.length >= maxRows) return;
+        const noMoreNames = getSelectedNameCount() >= specList.length;
+        if (rowsState.length >= maxRows || noMoreNames) return;
         rowsState.push({ name: "", value: "" });
         renderRows();
-        addBtn.disabled = rowsState.length >= maxRows;
+        addBtn.disabled = rowsState.length >= maxRows || getSelectedNameCount() >= specList.length;
       });
     }
 
@@ -843,6 +1232,7 @@ export function setupShein() {
       closeAttrModal();
       renderSpecCards();
       syncSpecDefines();
+      renderImagePreview();
       return;
     }
     const attr = sheinAttrByKey.get(activeAttrKey);
@@ -1004,11 +1394,13 @@ export function setupShein() {
   const updateStepChecks = () => {
     const catOk = Boolean(getCatId());
     const tplOk = Boolean(templateRes);
-    const imgOk = lastUploadOk;
+    const imgOk = validateSheinImagesReady().ok;
+    const supplyOk = validateSheinSupplyReady().ok;
+    lastUploadOk = imgOk && supplyOk;
     const submitOk = lastSubmitOk;
     if (stepCheck1) stepCheck1.hidden = !catOk;
     if (stepCheck2) stepCheck2.hidden = !tplOk;
-    if (stepCheck3) stepCheck3.hidden = !imgOk;
+    if (stepCheck3) stepCheck3.hidden = !(imgOk && supplyOk);
     if (stepCheck4) stepCheck4.hidden = !submitOk;
   };
 
@@ -1039,58 +1431,9 @@ export function setupShein() {
   };
 
   const renderImagePreview = () => {
-    if (!imagePreview) return;
-    const labelMap = {
-      "1": "主图",
-      "2": "细节图",
-      "5": "方形图",
-      "6": "色块图",
-      "7": "详情图",
-    };
-    const blocks = Object.entries(uploadBuckets).map(([key, items]) => {
-      const list = Array.isArray(items) ? items : [];
-      const body = list.length
-        ? list
-            .map(
-              (it) => `
-                <div class="flex items-center gap-2 text-xs text-slate-600">
-                  <button type="button" data-view-image="${escapeHtml(it.img_url)}" class="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-white">
-                    <img src="${escapeHtml(it.img_url)}" alt="img" class="w-full h-full object-cover" />
-                  </button>
-                  <div class="flex-1 break-all">${escapeHtml(it.img_url)}</div>
-                </div>
-              `,
-            )
-            .join("")
-        : '<div class="text-[11px] text-slate-400">暂无图片</div>';
-      return `
-        <div class="rounded-2xl border border-slate-100 bg-white p-3 space-y-2">
-          <div class="text-xs font-bold text-slate-700">${labelMap[key] || key}</div>
-          ${body}
-        </div>
-      `;
-    });
-    imagePreview.innerHTML = blocks.join("");
-  };
-
-  const fillImageJsonIfEmpty = () => {
-    const map = {
-      "2": albumImagesInput,
-      "5": squareImagesInput,
-      "6": colorBlockImagesInput,
-      "7": detailImagesInput,
-    };
-    Object.entries(map).forEach(([key, input]) => {
-      if (!input) return;
-      if (String(input.value || "").trim()) return;
-      const list = uploadBuckets[key] || [];
-      if (!list.length) return;
-      input.value = JSON.stringify(
-        list.map((it) => ({ img_url: it.img_url, img_id: it.img_id || "0" })),
-        null,
-        2,
-      );
-    });
+    renderSheinImageCards();
+    syncSheinImageJson();
+    renderSupplyTable();
   };
 
   const resetUpload = () => {
@@ -1105,11 +1448,11 @@ export function setupShein() {
     sheinSpecOtherList = [];
     sheinSpecMainRows = [];
     sheinSpecOtherRows = [];
+    sheinImageBuckets = new Map();
     renderSpecCards();
     syncSpecDefines();
-    if (templatePre) setPre(templatePre, "");
+    if (templatePre) templatePre.textContent = "";
     if (templateForm) templateForm.innerHTML = "";
-    if (uploadPre) setPre(uploadPre, "");
     if (createPre) setPre(createPre, "");
     if (sheinOthersInput) sheinOthersInput.value = "";
     if (sheinGoodsAttrInput) sheinGoodsAttrInput.value = "";
@@ -1129,11 +1472,9 @@ export function setupShein() {
     if (lengthInput) lengthInput.value = "";
     if (wideInput) wideInput.value = "";
     if (highInput) highInput.value = "";
-    Object.keys(uploadBuckets).forEach((k) => {
-      uploadBuckets[k] = [];
-    });
     renderImagePreview();
     setTemplateMsg("");
+    setTemplateVisibility(false);
     setStep(1);
   };
 
@@ -1283,6 +1624,7 @@ export function setupShein() {
         sheinSpecOtherRows = [];
         renderSpecCards();
         syncSpecDefines();
+        renderImagePreview();
         if (templateForm) templateForm.innerHTML = "";
         fetchTemplate(nextTypeId, { silent: false });
       }
@@ -1340,6 +1682,7 @@ export function setupShein() {
         closeAttrModal();
         renderSpecCards();
         syncSpecDefines();
+        renderImagePreview();
         return;
       }
       if (activeAttrKey) sheinAttrSelections.delete(activeAttrKey);
@@ -1349,20 +1692,76 @@ export function setupShein() {
   }
 
   if (stepBtn1) stepBtn1.addEventListener("click", () => setStep(1));
-  if (stepBtn2) stepBtn2.addEventListener("click", () => setStep(2));
-  if (stepBtn3) stepBtn3.addEventListener("click", () => setStep(3));
-  if (stepBtn4) stepBtn4.addEventListener("click", () => setStep(4));
+  if (stepBtn2) {
+    stepBtn2.addEventListener("click", () => {
+      setStep(2);
+      renderImagePreview();
+    });
+  }
+  if (stepBtn3) {
+    stepBtn3.addEventListener("click", () => {
+      if (!hasValidMainSpec()) {
+        setImageHint("请先选择主规格名称和内容", true);
+        return;
+      }
+      setStep(3);
+      renderImagePreview();
+    });
+  }
+  if (stepBtn4) {
+    stepBtn4.addEventListener("click", () => {
+      const check = validateSheinImagesReady();
+      if (!check.ok) {
+        setImageHint(check.msg, true);
+        setSupplyHint("");
+        return;
+      }
+      const supplyCheck = validateSheinSupplyReady();
+      if (!supplyCheck.ok) {
+        setImageHint(supplyCheck.msg, true);
+        setSupplyHint(supplyCheck.msg);
+        return;
+      }
+      setImageHint("");
+      setSupplyHint("");
+      setStep(4);
+    });
+  }
   if (next1) next1.addEventListener("click", () => {
-    if (!getCatId()) {
-      setTemplateMsg("请先选择类目");
-      return;
-    }
+    if (!getCatId()) return;
     setStep(2);
   });
   if (back2) back2.addEventListener("click", () => setStep(1));
-  if (next2) next2.addEventListener("click", () => setStep(3));
+  if (next2) {
+    next2.addEventListener("click", () => {
+      if (!hasValidMainSpec()) {
+        setImageHint("请先选择主规格名称和内容", true);
+        return;
+      }
+      setStep(3);
+      renderImagePreview();
+    });
+  }
   if (back3) back3.addEventListener("click", () => setStep(2));
-  if (next3) next3.addEventListener("click", () => setStep(4));
+  if (next3) {
+    next3.addEventListener("click", () => {
+      const check = validateSheinImagesReady();
+      if (!check.ok) {
+        setImageHint(check.msg, true);
+        setSupplyHint("");
+        return;
+      }
+      const supplyCheck = validateSheinSupplyReady();
+      if (!supplyCheck.ok) {
+        setImageHint(supplyCheck.msg, true);
+        setSupplyHint(supplyCheck.msg);
+        return;
+      }
+      setImageHint("");
+      setSupplyHint("");
+      setStep(4);
+    });
+  }
   if (back4) back4.addEventListener("click", () => setStep(3));
 
   async function fetchTemplate(typeId, opts = {}) {
@@ -1370,8 +1769,9 @@ export function setupShein() {
     if (!tid) return;
     const silent = opts?.silent === true;
     if (templateBtn) templateBtn.disabled = true;
-    if (!silent) setTemplateMsg("加载中...");
-    setPre(templatePre, "");
+    // keep silent
+    if (templatePre) templatePre.textContent = "";
+    setTemplateVisibility(false);
     sheinAttrSelections.clear();
     sheinAttrList = [];
     sheinAttrByKey = new Map();
@@ -1383,14 +1783,10 @@ export function setupShein() {
         window.location.href = "/login.html";
         return;
       }
-      if (String(res?.code) !== "0") {
-        if (!silent) setTemplateMsg(res?.msg || "获取失败");
-        return;
-      }
+      if (String(res?.code) !== "0") return;
       templateRes = res;
       lastTemplateCatId = tid;
-      if (!silent) setTemplateMsg("获取成功");
-      setPre(templatePre, res);
+      if (templatePre) templatePre.textContent = "";
       const data = res?.data || {};
       sheinSpecMainList = normalizeSpecList(data?.pro_main_arr);
       sheinSpecOtherList = normalizeSpecList(data?.pro_other_arr);
@@ -1399,8 +1795,10 @@ export function setupShein() {
       renderSpecCards();
       syncSpecDefines();
       renderSheinTemplateForm();
+      setTemplateVisibility(true);
+      renderImagePreview();
     } catch {
-      if (!silent) setTemplateMsg("网络异常");
+      // keep silent
     } finally {
       if (templateBtn) templateBtn.disabled = false;
       updateStepChecks();
@@ -1411,10 +1809,7 @@ export function setupShein() {
     templateBtn.addEventListener("click", async () => {
       const catId = getCatId();
       const typeId = getTypeId() || catId;
-      if (!catId) {
-        setTemplateMsg("请先选择类目");
-        return;
-      }
+      if (!catId) return;
       await fetchTemplate(typeId);
     });
   }
@@ -1429,59 +1824,150 @@ export function setupShein() {
       sheinSpecOtherList = [];
       sheinSpecMainRows = [];
       sheinSpecOtherRows = [];
-      if (templatePre) setPre(templatePre, "");
+      if (templatePre) templatePre.textContent = "";
       if (templateForm) templateForm.innerHTML = "";
       renderSpecCards();
       syncSpecDefines();
-      setTemplateMsg("");
+      renderImagePreview();
+      setTemplateVisibility(false);
       updateStepChecks();
     });
   }
 
-  if (uploadBtn) {
-    uploadBtn.addEventListener("click", async () => {
-      if (!fileInput || !fileInput.files || !fileInput.files.length) {
-        setPre(uploadPre, { code: "1", msg: "请选择图片文件" });
+  const readImageSize = (file) =>
+    new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const info = { width: img.width, height: img.height };
+        URL.revokeObjectURL(url);
+        resolve(info);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("load_failed"));
+      };
+      img.src = url;
+    });
+
+  const ratioMatch = (value, list) => {
+    const tolerance = 0.02;
+    return list.some((r) => Math.abs(value - r) <= tolerance);
+  };
+
+  const validateSheinImageFile = async (file, type) => {
+    const meta = IMAGE_TYPE_META[type];
+    if (!meta) return "不支持的图片类型";
+    const isJpg = file.type === "image/jpeg";
+    const isPng = file.type === "image/png";
+    if (!isJpg && !isPng) return "仅支持 JPG/JPEG/PNG 格式";
+    if (file.size > 3 * 1024 * 1024) return "图片大小需小于 3MB";
+    const { width, height } = await readImageSize(file);
+    if (type === "6") {
+      if (width !== 80 || height !== 80) return "色块图需为 80×80 像素";
+      return "";
+    }
+    const ratio = width / height;
+    if (!ratioMatch(ratio, meta.ratios)) return `图片比例不符合 ${meta.ratios.map((r) => r.toFixed(2)).join("/")}`;
+    if (meta.min && (width < meta.min || height < meta.min)) return `图片像素需 ≥ ${meta.min}`;
+    if (meta.maxSize && (width > meta.maxSize || height > meta.maxSize)) return `图片像素需 ≤ ${meta.maxSize}`;
+    return "";
+  };
+
+  const setCardMsg = (card, msg) => {
+    if (!card) return;
+    const msgEl = card.querySelector("[data-image-msg]");
+    if (!msgEl) return;
+    if (!msg) {
+      msgEl.classList.add("hidden");
+      msgEl.textContent = "";
+      return;
+    }
+    msgEl.classList.remove("hidden");
+    msgEl.textContent = msg;
+  };
+
+  const uploadSheinImage = async (file, type) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (type) formData.append("image_type", type);
+    const res = await postAuthedFormData("/api/shein/upload_shein_img", formData);
+    if (String(res?.code) === "2") {
+      clearAuth();
+      window.location.href = "/login.html";
+      return null;
+    }
+    if (String(res?.code) !== "0") return { error: res?.msg || "上传失败" };
+    const raw = res?.data || res;
+    const imgUrl =
+      raw?.img_url || raw?.url || raw?.data?.img_url || raw?.data?.url || extractFirstUrl(JSON.stringify(raw));
+    if (!imgUrl) return { error: "上传失败" };
+    return { img_url: imgUrl, img_id: raw?.img_id || "0" };
+  };
+
+  if (imagePreview && !imagePreview.dataset.bound) {
+    imagePreview.dataset.bound = "1";
+    imagePreview.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-image-upload]");
+      if (!btn) return;
+      const card = btn.closest("[data-image-card]");
+      if (!card) return;
+      const input = card.querySelector("[data-image-input]");
+      if (input) input.click();
+    });
+
+    imagePreview.addEventListener("change", async (e) => {
+      const input = e.target;
+      if (!input?.matches?.("[data-image-input]")) return;
+      const card = input.closest("[data-image-card]");
+      if (!card) return;
+      const specKey = card.dataset.specKey || "";
+      const type = card.dataset.imageType || "";
+      const bucket = sheinImageBuckets.get(specKey);
+      if (!bucket || !IMAGE_TYPE_META[type]) return;
+      const files = Array.from(input.files || []);
+      input.value = "";
+      if (!files.length) return;
+
+      const max = IMAGE_TYPE_META[type].max || 999;
+      const current = bucket.images[type]?.length || 0;
+      if (current >= max) {
+        setCardMsg(card, `最多上传 ${max} 张`);
         return;
       }
-      const file = fileInput.files[0];
-      const imageType = String(imageTypeSelect?.value || "").trim();
-      const formData = new FormData();
-      formData.append("file", file);
-      if (imageType) formData.append("image_type", imageType);
-      uploadBtn.disabled = true;
-      uploadBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i>上传中...';
-      try {
-        const res = await postAuthedFormData("/api/shein/upload_shein_img", formData);
-        if (String(res?.code) === "2") {
-          clearAuth();
-          window.location.href = "/login.html";
-          return;
+
+      let updated = false;
+      for (const file of files) {
+        if ((bucket.images[type]?.length || 0) >= max) break;
+        const error = await validateSheinImageFile(file, type);
+        if (error) {
+          setCardMsg(card, error);
+          continue;
         }
-        setPre(uploadPre, res);
-        const raw = res?.data || res;
-        const imgUrl =
-          raw?.img_url ||
-          raw?.url ||
-          raw?.data?.img_url ||
-          raw?.data?.url ||
-          extractFirstUrl(JSON.stringify(raw));
-        if (imgUrl) {
-          const bucket = uploadBuckets[imageType] || [];
-          bucket.push({ img_url: imgUrl, img_id: raw?.img_id || "0" });
-          uploadBuckets[imageType] = bucket;
-          lastUploadOk = true;
-          renderImagePreview();
-          fillImageJsonIfEmpty();
-          if (stepHint3) stepHint3.textContent = `已上传 ${bucket.length} 张`;
+        setCardMsg(card, "上传中...");
+        const res = await uploadSheinImage(file, type);
+        if (res?.error) {
+          setCardMsg(card, res.error);
+          continue;
         }
-      } catch {
-        setPre(uploadPre, { code: "1", msg: "上传失败" });
-      } finally {
-        uploadBtn.disabled = false;
-        uploadBtn.innerHTML = '<i class="fas fa-upload mr-1"></i>上传';
-        updateStepChecks();
+        bucket.images[type].push(res);
+        lastUploadOk = true;
+        setCardMsg(card, "");
+        updated = true;
       }
+      if (updated) renderImagePreview();
+    });
+
+    imagePreview.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-image-remove]");
+      if (!btn) return;
+      const specKey = String(btn.dataset.specKey || "");
+      const type = String(btn.dataset.imageType || "");
+      const idx = Number(btn.dataset.imageIdx || 0);
+      const bucket = sheinImageBuckets.get(specKey);
+      if (!bucket || !bucket.images?.[type]) return;
+      bucket.images[type].splice(idx, 1);
+      renderImagePreview();
     });
   }
 
@@ -1542,9 +2028,9 @@ export function setupShein() {
     setSubView(mode, { updateHash: false });
   });
 
-  renderImagePreview();
   renderSpecCards();
   syncSpecDefines();
+  renderImagePreview();
   setStep(1);
   load();
 }
