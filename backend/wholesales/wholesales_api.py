@@ -200,6 +200,18 @@ def wholesales_orders_list():
     return _proxy_wholesales_action("orders_list")
 
 
+@wholesales_bp.post("/api/wholesales/refund_list")
+def wholesales_refund_list():
+    """Proxy: wholesales.php?action=refund_list."""
+    return _proxy_wholesales_action("refund_list")
+
+
+@wholesales_bp.post("/api/wholesales/do_refund")
+def wholesales_do_refund():
+    """Proxy: wholesales.php?action=do_refund."""
+    return _proxy_wholesales_action("do_refund")
+
+
 @wholesales_bp.post("/api/wholesales/order_info")
 def wholesales_order_info():
     """Proxy: wholesales.php?action=order_info."""

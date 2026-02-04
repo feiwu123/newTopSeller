@@ -1566,3 +1566,284 @@ export function setupWholesalesOrders() {
 
   load();
 }
+
+export function setupWholesalesRefunds() {
+  const keyword = document.getElementById("ws-refunds-keyword");
+  const refreshBtn = document.getElementById("ws-refunds-refresh");
+  const summary = document.getElementById("ws-refunds-summary");
+  const prevBtn = document.getElementById("ws-refunds-prev");
+  const nextBtn = document.getElementById("ws-refunds-next");
+  const pageEl = document.getElementById("ws-refunds-page");
+  const tbody = document.getElementById("ws-refunds-tbody");
+  const rawPre = document.getElementById("ws-refunds-raw");
+
+  const modal = document.getElementById("ws-refund-modal");
+  const modalOverlay = document.getElementById("ws-refund-modal-overlay");
+  const modalId = document.getElementById("ws-refund-modal-id");
+  const modalNote = document.getElementById("ws-refund-note");
+  const modalError = document.getElementById("ws-refund-error");
+  const modalCancel = document.getElementById("ws-refund-cancel");
+  const modalCancelBtn = document.getElementById("ws-refund-cancel-btn");
+  const modalSubmit = document.getElementById("ws-refund-submit");
+
+  if (!keyword || !refreshBtn || !tbody) return;
+
+  let page = 1;
+  let size = 15;
+  let total = 0;
+  let pending = false;
+
+  const setSummary = (t) => {
+    if (!summary) return;
+    summary.textContent = t || "-";
+  };
+
+  const setPageText = () => {
+    if (!pageEl) return;
+    const pages = size > 0 ? Math.max(1, Math.ceil(total / size)) : 1;
+    pageEl.textContent = `第 ${page} / ${pages} 页`;
+    if (prevBtn) prevBtn.disabled = page <= 1;
+    if (nextBtn) nextBtn.disabled = page >= pages;
+  };
+
+  const refundStatusBadge = (val) => {
+    const v = String(val ?? "");
+    if (v === "1") {
+      return '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-emerald-200 text-emerald-600 bg-emerald-50">已同意</span>';
+    }
+    if (v === "2") {
+      return '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-rose-200 text-rose-600 bg-rose-50">已拒绝</span>';
+    }
+    return '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-amber-200 text-amber-600 bg-amber-50">申请中</span>';
+  };
+
+  const renderRows = (list) => {
+    tbody.innerHTML = "";
+    const rows = Array.isArray(list) ? list : [];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-[11px] text-slate-400">暂无数据</td></tr>';
+      return;
+    }
+    for (const o of rows) {
+      const refundId = String(o?.refund_id ?? "");
+      const orderId = String(o?.order_id ?? "");
+      const sn = String(o?.order_sn ?? "");
+      const time = String(o?.short_order_time ?? "");
+      const amount = String(o?.surplus ?? "");
+      const refundReason = String(o?.refund_reason ?? "");
+      const refundDesc = String(o?.refund_desc ?? "");
+      const applyTime = String(o?.short_apply_time ?? "");
+      const handleTime = String(o?.short_handle_time ?? "");
+      const adminNote = String(o?.admin_note ?? "");
+
+      const refundStatus = refundStatusBadge(o?.refund_status);
+
+      const actionHtml =
+        String(o?.refund_status ?? "") === "0"
+          ? `
+            <div class="flex items-center gap-2">
+              <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700" data-refund-act="agree" data-refund-id="${escapeHtml(
+                refundId
+              )}">
+                同意
+              </button>
+              <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-rose-200 text-rose-600 hover:bg-rose-50" data-refund-act="reject" data-refund-id="${escapeHtml(
+                refundId
+              )}">
+                不同意
+              </button>
+            </div>
+          `
+          : '<span class="text-xs text-slate-400">-</span>';
+
+      const tr = document.createElement("tr");
+      tr.className = "border-t border-slate-100";
+      tr.innerHTML = `
+        <td class="px-4 py-3">
+          <div class="text-sm font-black text-slate-900">${escapeHtml(sn || "-")}</div>
+          <div class="text-[11px] text-slate-400 font-mono">ID:${escapeHtml(orderId)} · ${escapeHtml(time)}</div>
+          <div class="text-[11px] text-slate-500">扣款金额：${escapeHtml(amount || "-")}</div>
+        </td>
+        <td class="px-4 py-3">
+          <div class="text-xs text-slate-700">理由：${escapeHtml(refundReason || "-")}</div>
+          ${refundDesc ? `<div class="text-[11px] text-slate-500">补充：${escapeHtml(refundDesc)}</div>` : ""}
+          <div class="text-[11px] text-slate-400">申请时间：${escapeHtml(applyTime || "-")}</div>
+          ${handleTime ? `<div class="text-[11px] text-slate-400">处理时间：${escapeHtml(handleTime)}</div>` : ""}
+          ${adminNote ? `<div class="text-[11px] text-slate-500">审核备注：${escapeHtml(adminNote)}</div>` : ""}
+        </td>
+        <td class="px-4 py-3">
+          <div class="flex flex-wrap gap-2">${refundStatus}</div>
+        </td>
+        <td class="px-4 py-3">${actionHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  };
+
+  const closeModal = () => {
+    if (!modal) return;
+    modal.classList.add("hidden");
+    if (modalNote) modalNote.value = "";
+    if (modalError) {
+      modalError.textContent = "";
+      modalError.classList.add("hidden");
+    }
+    if (modalSubmit) modalSubmit.disabled = false;
+  };
+
+  const openModal = (refundId) => {
+    if (!modal) return;
+    modal.dataset.refundId = refundId || "";
+    if (modalId) modalId.textContent = refundId || "-";
+    if (modalNote) modalNote.value = "";
+    if (modalError) {
+      modalError.textContent = "";
+      modalError.classList.add("hidden");
+    }
+    modal.classList.remove("hidden");
+    setTimeout(() => modalNote?.focus(), 50);
+  };
+
+  const doRefund = async (refundId, status, note) => {
+    if (pending) return false;
+    pending = true;
+    setSummary("处理中...");
+    try {
+      const res = await postAuthedJson("/api/wholesales/do_refund", {
+        refund_id: String(refundId || ""),
+        refund_status: String(status || ""),
+        note: note ? String(note) : "",
+      });
+      setPre(rawPre, res);
+      if (String(res?.code) === "2") {
+        clearAuth();
+        window.location.href = "/login.html";
+        return false;
+      }
+      if (String(res?.code) !== "0") {
+        setSummary(res?.msg || "操作失败");
+        return false;
+      }
+      return true;
+    } catch {
+      setSummary("网络异常，请稍后重试");
+      return false;
+    } finally {
+      pending = false;
+    }
+  };
+
+  const load = async () => {
+    const original = refreshBtn.innerHTML;
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i>加载中...';
+    setSummary("加载中...");
+    try {
+      const res = await postAuthedJson("/api/wholesales/refund_list", {
+        keyword: String(keyword.value ?? "").trim(),
+        page: String(page),
+        size: String(size),
+      });
+      setPre(rawPre, res);
+      if (String(res?.code) === "2") {
+        clearAuth();
+        window.location.href = "/login.html";
+        return;
+      }
+      if (String(res?.code) !== "0") {
+        renderRows([]);
+        setSummary(res?.msg || "加载失败");
+        total = 0;
+        setPageText();
+        return;
+      }
+      const data = res?.data || {};
+      const list = Array.isArray(data?.lists) ? data.lists : Array.isArray(data?.list) ? data.list : [];
+      total = Number(data?.num ?? list.length) || list.length;
+      renderRows(list);
+      setSummary(`本页 ${list.length} 条 · 共 ${total} 条`);
+      setPageText();
+    } catch {
+      renderRows([]);
+      setSummary("网络异常，请稍后重试");
+    } finally {
+      refreshBtn.disabled = false;
+      refreshBtn.innerHTML = original;
+    }
+  };
+
+  refreshBtn.addEventListener("click", () => {
+    page = 1;
+    load();
+  });
+  keyword.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      page = 1;
+      load();
+    }
+  });
+  if (prevBtn) prevBtn.addEventListener("click", () => { if (page > 1) { page -= 1; load(); } });
+  if (nextBtn) nextBtn.addEventListener("click", () => { page += 1; load(); });
+
+  tbody.addEventListener("click", async (e) => {
+    const btn = e.target?.closest?.("[data-refund-act]");
+    if (!btn) return;
+    const refundId = btn.dataset.refundId || "";
+    const action = btn.dataset.refundAct || "";
+    if (!refundId) return;
+    if (action === "agree") {
+      const ok = await showConfirmPopover(btn, {
+        title: "同意退款",
+        message: "确认同意该退款申请？",
+        confirmText: "同意",
+        cancelText: "取消",
+        tone: "primary",
+      });
+      if (!ok) return;
+      const success = await doRefund(refundId, "1", "");
+      if (success) load();
+      return;
+    }
+    if (action === "reject") {
+      openModal(refundId);
+    }
+  });
+
+  const submitReject = async () => {
+    if (!modal || !modalNote || !modalSubmit) return;
+    const refundId = modal.dataset.refundId || "";
+    const note = String(modalNote.value ?? "").trim();
+    if (!note) {
+      if (modalError) {
+        modalError.textContent = "请填写不同意理由";
+        modalError.classList.remove("hidden");
+      }
+      return;
+    }
+    if (modalError) {
+      modalError.textContent = "";
+      modalError.classList.add("hidden");
+    }
+    modalSubmit.disabled = true;
+    const original = modalSubmit.innerHTML;
+    modalSubmit.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i>提交中...';
+    const success = await doRefund(refundId, "2", note);
+    modalSubmit.disabled = false;
+    modalSubmit.innerHTML = original;
+    if (success) {
+      closeModal();
+      load();
+    }
+  };
+
+  modalOverlay?.addEventListener("click", closeModal);
+  modalCancel?.addEventListener("click", closeModal);
+  modalCancelBtn?.addEventListener("click", closeModal);
+  modalSubmit?.addEventListener("click", submitReject);
+  modalNote?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submitReject();
+    if (e.key === "Escape") closeModal();
+  });
+
+  load();
+}

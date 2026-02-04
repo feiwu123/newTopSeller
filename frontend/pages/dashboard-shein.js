@@ -135,6 +135,7 @@ export function setupShein() {
   let sheinSpecOtherRows = [];
   let sheinImageBuckets = new Map();
   let sheinSupplyRows = new Map();
+  let editingSheinGoodsId = "";
 
   const setSummary = (t) => {
     if (!summary) return;
@@ -178,6 +179,70 @@ export function setupShein() {
       return v;
     }
   };
+  const parseMaybeJson = (raw) => {
+    if (raw == null) return null;
+    if (typeof raw === "string") {
+      const v = raw.trim();
+      if (!v) return null;
+      try {
+        return JSON.parse(v);
+      } catch {
+        return raw;
+      }
+    }
+    return raw;
+  };
+  const setInputValue = (el, value) => {
+    if (!el) return;
+    el.value = value == null ? "" : String(value);
+  };
+  const setTextareaJson = (el, value) => {
+    if (!el) return;
+    if (value == null || value === "") {
+      el.value = "";
+      return;
+    }
+    if (typeof value === "string") {
+      el.value = value;
+      return;
+    }
+    el.value = JSON.stringify(value, null, 2);
+  };
+  const parseList = (raw) => {
+    if (Array.isArray(raw)) return raw;
+    if (raw == null) return [];
+    if (typeof raw === "string") {
+      const cleaned = raw.replace(/[\[\]]/g, "");
+      return cleaned
+        .split(/[>,/|\\s]+/)
+        .map((x) => String(x ?? "").trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+  const buildCatInitialState = (info) => {
+    const leafId =
+      info?.cat_id ??
+      info?.catId ??
+      info?.category_id ??
+      info?.categoryId ??
+      info?.cat_id_leaf ??
+      info?.cat_leaf_id ??
+      "";
+    const typeId = info?.type_id ?? info?.typeId ?? "";
+    const pathText =
+      info?.cat_path_text ??
+      info?.cat_path_name ??
+      info?.cat_path ??
+      info?.cat_path_str ??
+      "";
+    const pathIdsRaw = info?.cat_path_ids ?? info?.cat_ids ?? info?.cat_path_id ?? "";
+    const ids = parseList(pathIdsRaw);
+    const pathParts = parseList(info?.cat_path_parts ?? info?.cat_path_names ?? info?.cat_path_list ?? "");
+    if (leafId && (!ids.length || ids[ids.length - 1] !== String(leafId))) ids.push(String(leafId));
+    if (!leafId && !ids.length && !pathText && !pathParts.length && !typeId) return null;
+    return { ids, leafId: String(leafId || ""), pathText: String(pathText || ""), pathParts, typeId: String(typeId || "") };
+  };
 
   const getSheinTemplateAttrs = () => {
     const data = templateRes?.data || {};
@@ -201,8 +266,17 @@ export function setupShein() {
           item?.title ??
           "";
         const fallback = item?.attribute_value_id ?? item?.value_id ?? item?.id ?? "";
+        const extra =
+          item?.attribute_value ??
+          item?.value ??
+          item?.value_name ??
+          item?.attribute_value_name ??
+          label ??
+          "";
         return {
+          id: String(fallback || "").trim(),
           label: String(label || fallback || "").trim(),
+          extraValue: String(extra || "").trim(),
         };
       })
       .filter((opt) => opt.label);
@@ -459,20 +533,32 @@ export function setupShein() {
 
   const syncSheinImageJson = () => {
     const rows = getFirstMainSpecRow();
-    const buildPayload = (type) =>
-      rows
-        .map((row) => {
-          const key = buildSpecKey(row);
-          const bucket = sheinImageBuckets.get(key);
-          const list = (bucket?.images?.[type] || []).map((it) => ({ img_url: it.img_url, img_id: it.img_id || "0" }));
-          return list.length ? { spec_name: row.name, spec_value: row.value, images: list } : null;
-        })
-        .filter(Boolean);
+    const getMainSpecValueId = (row) => {
+      const src = sheinSpecMainList.find((it) => it.name === row.name);
+      const opt = src?.values?.find((it) => String(it?.label ?? "") === String(row.value ?? ""));
+      return String(opt?.id ?? "").trim();
+    };
+    const buildPayload = (type) => {
+      const result = {};
+      rows.forEach((row) => {
+        const valueId = getMainSpecValueId(row);
+        if (!valueId) return;
+        const key = buildSpecKey(row);
+        const bucket = sheinImageBuckets.get(key);
+        const list = (bucket?.images?.[type] || []).map((it) => ({ img_url: it.img_url }));
+        if (list.length) result[valueId] = list;
+      });
+      return result;
+    };
 
-    if (albumImagesInput) albumImagesInput.value = JSON.stringify(buildPayload("2"), null, 2);
-    if (squareImagesInput) squareImagesInput.value = JSON.stringify(buildPayload("5"), null, 2);
-    if (colorBlockImagesInput) colorBlockImagesInput.value = JSON.stringify(buildPayload("6"), null, 2);
-    if (detailImagesInput) detailImagesInput.value = JSON.stringify(buildPayload("7"), null, 2);
+    const album = buildPayload("2");
+    const square = buildPayload("5");
+    const color = buildPayload("6");
+    const detail = buildPayload("7");
+    if (albumImagesInput) albumImagesInput.value = Object.keys(album).length ? JSON.stringify(album, null, 2) : "";
+    if (squareImagesInput) squareImagesInput.value = Object.keys(square).length ? JSON.stringify(square, null, 2) : "";
+    if (colorBlockImagesInput) colorBlockImagesInput.value = Object.keys(color).length ? JSON.stringify(color, null, 2) : "";
+    if (detailImagesInput) detailImagesInput.value = Object.keys(detail).length ? JSON.stringify(detail, null, 2) : "";
   };
 
   const buildSupplyKey = (main, other) => {
@@ -689,6 +775,66 @@ export function setupShein() {
     const otherDefines = buildSpecDefines(sheinSpecOtherRows, sheinSpecOtherList);
     const all = [...mainDefines, ...otherDefines];
     specDefinesInput.value = all.length ? JSON.stringify(all, null, 2) : "";
+    syncSheinGoodsAttr();
+  };
+
+  const syncSheinGoodsAttr = () => {
+    if (!sheinGoodsAttrInput) return;
+    const mainDefines = buildSpecDefines(sheinSpecMainRows, sheinSpecMainList);
+    const otherDefines = buildSpecDefines(sheinSpecOtherRows, sheinSpecOtherList);
+    const list = [];
+    [...mainDefines, ...otherDefines].forEach((item) => {
+      const typeId = String(item?.type_id ?? "").trim();
+      const values = Array.isArray(item?.spec_value_ids) ? item.spec_value_ids : [];
+      values.forEach((val) => {
+        const valueId = String(val ?? "").trim();
+        if (typeId && valueId) list.push(`${typeId}|${valueId}`);
+      });
+    });
+    sheinGoodsAttrInput.value = list.length ? JSON.stringify(list, null, 2) : "";
+  };
+
+  const syncSheinOthers = () => {
+    if (!sheinOthersInput) return;
+    const entries = [];
+    sheinAttrList.forEach((attr) => {
+      const sel = sheinAttrSelections.get(attr.key);
+      if (!sel) return;
+      const attrId = String(attr?.id ?? "").trim();
+      if (!attrId) return;
+      const entry = { attribute_id: attrId };
+      if (attr.mode === "0") {
+        const val = String(sel?.value ?? "").trim();
+        if (val) entry.attribute_extra_value = val;
+      } else if (attr.mode === "4") {
+        const rows = Array.isArray(sel?.rows) ? sel.rows : [];
+        const extras = rows
+          .map((r) => {
+            const name = String(r?.name ?? "").trim();
+            const value = String(r?.value ?? "").trim();
+            if (name && value) return `${name}:${value}`;
+            return value || name;
+          })
+          .filter(Boolean);
+        if (extras.length) entry.attribute_extra_value = extras.join(",");
+      } else {
+        const values = Array.isArray(sel?.values) ? sel.values : [];
+        const ids = [];
+        const extras = [];
+        values.forEach((v) => {
+          const opt = attr.options.find((o) => String(o.label) === String(v));
+          const id = String(opt?.id ?? "").trim();
+          const extra = String(opt?.extraValue ?? v ?? "").trim();
+          if (id) ids.push(id);
+          if (extra) extras.push(extra);
+        });
+        if (ids.length) entry.attribute_value_id = ids.join(",");
+        if (extras.length) entry.attribute_extra_value = extras.join(",");
+      }
+      const hasValues = Boolean(entry.attribute_value_id || entry.attribute_extra_value);
+      if (hasValues) entries.push(entry);
+    });
+    sheinOthersInput.value = entries.length ? JSON.stringify(entries, null, 2) : "";
   };
 
   const SHEIN_MODE_LABELS = {
@@ -812,6 +958,7 @@ export function setupShein() {
         openAttrModal(attr);
       });
     });
+    syncSheinOthers();
   };
 
   const openSpecModal = (kind) => {
@@ -1294,7 +1441,18 @@ export function setupShein() {
           onSale === "1"
             ? statusBadge("在售", "border-emerald-200 bg-emerald-50 text-emerald-700")
             : statusBadge("未上架", "border-rose-200 bg-rose-50 text-rose-700");
-        const reviewMeta = review ? statusBadge(review, "border-slate-200 bg-slate-50 text-slate-700") : statusBadge("-", "border-slate-200 bg-slate-50 text-slate-500");
+        const reviewMeta = (() => {
+          const map = {
+            "1": { label: "未审核", cls: "border-slate-200 bg-slate-50 text-slate-600" },
+            "2": { label: "审核未通过", cls: "border-rose-200 bg-rose-50 text-rose-700" },
+            "3": { label: "审核通过", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+            "5": { label: "无需审核", cls: "border-slate-200 bg-slate-50 text-slate-600" },
+          };
+          const item = map[review];
+          if (!review) return statusBadge("-", "border-slate-200 bg-slate-50 text-slate-500");
+          if (item) return statusBadge(item.label, item.cls);
+          return statusBadge(review, "border-slate-200 bg-slate-50 text-slate-700");
+        })();
 
         const openAttr = url ? `data-open-url="${escapeHtml(url)}" title="打开链接"` : "";
         const nameHtml = url
@@ -1312,6 +1470,14 @@ export function setupShein() {
           return url ? `<button type="button" ${openAttr} class="block">${box}</button>` : box;
         })();
 
+        const editBtn = `
+          <button type="button" class="shein-edit inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-black text-slate-700" data-shein-edit-id="${escapeHtml(
+            goodsId,
+          )}">
+            <i class="fas fa-pen-to-square text-slate-500"></i>
+            <span>编辑</span>
+          </button>
+        `;
         const toggleBtn = `
           <button type="button" class="shein-toggle-sale inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-black text-slate-700" data-goods-id="${escapeHtml(
             goodsId,
@@ -1320,6 +1486,7 @@ export function setupShein() {
             <span>${onSale === "1" ? "下架" : "上架"}</span>
           </button>
         `;
+        const actions = `<div class="flex items-center justify-end gap-2">${editBtn}${toggleBtn}</div>`;
 
         return `
           <tr class="table-row-hover ${border} transition">
@@ -1342,7 +1509,7 @@ export function setupShein() {
             <td class="px-6 py-4 whitespace-nowrap">${reviewMeta}</td>
             <td class="px-6 py-4 text-right text-xs font-black text-slate-900">${escapeHtml(String(price))}</td>
             <td class="px-6 py-4 text-xs text-slate-500">${escapeHtml(String(time))}</td>
-            <td class="px-6 py-4 text-right">${toggleBtn}</td>
+            <td class="px-6 py-4 text-right">${actions}</td>
           </tr>
         `;
       })
@@ -1391,21 +1558,40 @@ export function setupShein() {
     }
   };
 
-  const updateStepChecks = () => {
+  const applyStepUnlocks = () => {
     const catOk = Boolean(getCatId());
     const tplOk = Boolean(templateRes);
+    const specOk = hasValidMainSpec();
     const imgOk = validateSheinImagesReady().ok;
     const supplyOk = validateSheinSupplyReady().ok;
     lastUploadOk = imgOk && supplyOk;
-    const submitOk = lastSubmitOk;
-    if (stepCheck1) stepCheck1.hidden = !catOk;
-    if (stepCheck2) stepCheck2.hidden = !tplOk;
-    if (stepCheck3) stepCheck3.hidden = !(imgOk && supplyOk);
-    if (stepCheck4) stepCheck4.hidden = !submitOk;
+    const unlocks = [true, catOk, Boolean(catOk && tplOk && specOk), Boolean(imgOk && supplyOk)];
+    const btns = [stepBtn1, stepBtn2, stepBtn3, stepBtn4];
+    const checks = [stepCheck1, stepCheck2, stepCheck3, stepCheck4];
+    unlocks.forEach((on, idx) => {
+      const btn = btns[idx];
+      if (btn) {
+        btn.disabled = !on;
+        btn.classList.toggle("opacity-50", !on);
+        btn.classList.toggle("cursor-not-allowed", !on);
+      }
+      const check = checks[idx];
+      if (check) {
+        check.hidden = !on;
+        check.classList.toggle("hidden", !on);
+      }
+    });
+    return unlocks;
+  };
+
+  const updateStepChecks = () => {
+    applyStepUnlocks();
   };
 
   const setStep = (n) => {
-    sheinStep = Math.min(Math.max(n, 1), 4);
+    const unlocks = applyStepUnlocks();
+    const maxUnlocked = Math.max(1, unlocks.lastIndexOf(true) + 1);
+    sheinStep = Math.min(Math.max(n, 1), maxUnlocked);
     const panels = [panel1, panel2, panel3, panel4];
     panels.forEach((p, idx) => {
       if (!p) return;
@@ -1522,6 +1708,27 @@ export function setupShein() {
 
   if (tbody) {
     tbody.addEventListener("click", async (e) => {
+      const editBtn = e.target?.closest?.(".shein-edit");
+      if (editBtn) {
+        const pending = editBtn.dataset.pending === "1";
+        if (pending) return;
+        const goodsId = String(editBtn.dataset.sheinEditId ?? "").trim();
+        if (!goodsId) return;
+        editBtn.dataset.pending = "1";
+        const originalHtml = editBtn.innerHTML;
+        editBtn.classList.add("opacity-70");
+        editBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin text-[11px]"></i>编辑中...';
+        resetUpload();
+        setSubView("upload", { updateHash: true });
+        try {
+          await loadSheinInfoForEdit(goodsId);
+        } finally {
+          editBtn.dataset.pending = "0";
+          editBtn.classList.remove("opacity-70");
+          editBtn.innerHTML = originalHtml;
+        }
+        return;
+      }
       const btn = e.target?.closest?.(".shein-toggle-sale");
       if (!btn) return;
       const pending = btn.dataset.pending === "1";
@@ -1694,12 +1901,14 @@ export function setupShein() {
   if (stepBtn1) stepBtn1.addEventListener("click", () => setStep(1));
   if (stepBtn2) {
     stepBtn2.addEventListener("click", () => {
+      if (stepBtn2.disabled) return;
       setStep(2);
       renderImagePreview();
     });
   }
   if (stepBtn3) {
     stepBtn3.addEventListener("click", () => {
+      if (stepBtn3.disabled) return;
       if (!hasValidMainSpec()) {
         setImageHint("请先选择主规格名称和内容", true);
         return;
@@ -1710,6 +1919,7 @@ export function setupShein() {
   }
   if (stepBtn4) {
     stepBtn4.addEventListener("click", () => {
+      if (stepBtn4.disabled) return;
       const check = validateSheinImagesReady();
       if (!check.ok) {
         setImageHint(check.msg, true);
@@ -1763,6 +1973,218 @@ export function setupShein() {
     });
   }
   if (back4) back4.addEventListener("click", () => setStep(3));
+
+  const setSheinEditingId = (id) => {
+    editingSheinGoodsId = String(id ?? "").trim();
+    try {
+      if (editingSheinGoodsId) window.sessionStorage.setItem("topm:shein-edit-id", editingSheinGoodsId);
+      else window.sessionStorage.removeItem("topm:shein-edit-id");
+    } catch {
+      // ignore
+    }
+  };
+
+  const applySheinEditData = async (info, goodsId) => {
+    const id = String(goodsId ?? "").trim();
+    if (!info || !id) return;
+    setSheinEditingId(id);
+
+    const catState = buildCatInitialState(info);
+    if (catState) {
+      await buildCategorySelector("shein-cat-select", "shein", "shein-cat-id", {
+        initialState: catState,
+        restore: false,
+        persist: false,
+      });
+    }
+    const catId = String(catState?.leafId ?? info?.cat_id ?? info?.catId ?? info?.category_id ?? "").trim();
+    const typeId = String(catState?.typeId ?? info?.type_id ?? info?.typeId ?? "").trim();
+    const tplId = typeId || catId;
+    if (tplId) await fetchTemplate(tplId, { silent: true });
+
+    setInputValue(goodsNameInput, info?.goods_name ?? info?.goodsName ?? info?.title ?? "");
+    setInputValue(goodsSnInput, info?.goods_sn ?? info?.goodsSn ?? info?.sn ?? "");
+    setInputValue(goodsBriefInput, info?.goods_brief ?? info?.goodsBrief ?? info?.brief ?? "");
+    setInputValue(aliSellerSnInput, info?.ali_seller_sn ?? info?.aliSellerSn ?? "");
+    setInputValue(goodsWeightInput, info?.goods_weight ?? info?.weight ?? "");
+    setInputValue(lengthInput, info?.length ?? info?.goods_length ?? info?.long ?? "");
+    setInputValue(wideInput, info?.wide ?? info?.width ?? "");
+    setInputValue(highInput, info?.high ?? info?.height ?? "");
+
+    const goodsAttrPayload =
+      parseMaybeJson(info?.shein_goods_attr ?? info?.goods_attr ?? info?.goods_attrs ?? info?.goods_attr_arr);
+    setTextareaJson(sheinGoodsAttrInput, goodsAttrPayload);
+    setTextareaJson(sheinOthersInput, parseMaybeJson(info?.sheinOthers ?? info?.shein_others ?? info?.others));
+
+    const specDefines = parseMaybeJson(info?.spec_defines ?? info?.specDefines ?? info?.spec_define ?? info?.specs);
+    setTextareaJson(specDefinesInput, specDefines);
+
+    const specArr = Array.isArray(specDefines) ? specDefines : [];
+    if (specArr.length) {
+      const main = specArr[0] || {};
+      const other = specArr[1] || {};
+      const mainVals = Array.isArray(main?.spec_value_vals) ? main.spec_value_vals : [];
+      const otherVals = Array.isArray(other?.spec_value_vals) ? other.spec_value_vals : [];
+      sheinSpecMainRows = mainVals
+        .map((v) => ({ name: String(main?.type_name ?? main?.type_id ?? "主规格"), value: String(v ?? "").trim() }))
+        .filter((r) => r.value);
+      sheinSpecOtherRows = otherVals
+        .map((v) => ({ name: String(other?.type_name ?? other?.type_id ?? "次规格"), value: String(v ?? "").trim() }))
+        .filter((r) => r.value);
+    }
+
+    const productSn = parseMaybeJson(info?.product_sn ?? info?.productSn ?? info?.product_sn_list ?? "");
+    const productNumber = parseMaybeJson(info?.product_number ?? info?.productNumber ?? info?.product_stock ?? "");
+    const productPrice = parseMaybeJson(info?.product_price ?? info?.productPrice ?? info?.shop_price ?? "");
+    setTextareaJson(productSnInput, productSn);
+    setTextareaJson(productNumberInput, productNumber);
+    setTextareaJson(productPriceInput, productPrice);
+
+    const albumImages = parseMaybeJson(info?.album_images ?? info?.albumImages ?? "");
+    const squareImages = parseMaybeJson(info?.square_images ?? info?.squareImages ?? "");
+    const colorBlockImages = parseMaybeJson(info?.color_block_images ?? info?.colorBlockImages ?? "");
+    const detailImages = parseMaybeJson(info?.detail_images ?? info?.detailImages ?? "");
+    setTextareaJson(albumImagesInput, albumImages);
+    setTextareaJson(squareImagesInput, squareImages);
+    setTextareaJson(colorBlockImagesInput, colorBlockImages);
+    setTextareaJson(detailImagesInput, detailImages);
+
+    if (Array.isArray(productPrice) && sheinSpecMainRows.length) {
+      const mainRows = sheinSpecMainRows.filter((r) => r?.name && r?.value);
+      const otherRows = sheinSpecOtherRows.filter((r) => r?.name && r?.value);
+      const prices = Array.isArray(productPrice) ? productPrice : [];
+      const stocks = Array.isArray(productNumber) ? productNumber : [];
+      const sns = Array.isArray(productSn) ? productSn : [];
+      const next = new Map();
+      let idx = 0;
+      if (otherRows.length) {
+        mainRows.forEach((main) => {
+          otherRows.forEach((other) => {
+            const key = buildSupplyKey(main, other);
+            next.set(key, {
+              main,
+              other,
+              price: String(prices[idx] ?? ""),
+              stock: String(stocks[idx] ?? ""),
+              sn: String(sns[idx] ?? ""),
+            });
+            idx += 1;
+          });
+        });
+      } else {
+        mainRows.forEach((main) => {
+          const key = buildSupplyKey(main, null);
+          next.set(key, {
+            main,
+            other: null,
+            price: String(prices[idx] ?? ""),
+            stock: String(stocks[idx] ?? ""),
+            sn: String(sns[idx] ?? ""),
+          });
+          idx += 1;
+        });
+      }
+      sheinSupplyRows = next;
+    }
+
+    const isRecord = (val) => val && typeof val === "object" && !Array.isArray(val);
+    if (
+      Array.isArray(albumImages) ||
+      Array.isArray(squareImages) ||
+      Array.isArray(colorBlockImages) ||
+      Array.isArray(detailImages) ||
+      isRecord(albumImages) ||
+      isRecord(squareImages) ||
+      isRecord(colorBlockImages) ||
+      isRecord(detailImages)
+    ) {
+      const rows = sheinSpecMainRows.filter((r) => r?.name && r?.value);
+      const idToValue = new Map();
+      sheinSpecMainList.forEach((spec) => {
+        spec.values.forEach((opt) => {
+          const id = String(opt?.id ?? "").trim();
+          const label = String(opt?.label ?? "").trim();
+          if (id) idToValue.set(id, label);
+        });
+      });
+      const nextBuckets = new Map();
+      rows.forEach((row) => {
+        nextBuckets.set(buildSpecKey(row), {
+          name: String(row?.name ?? "").trim(),
+          value: String(row?.value ?? "").trim(),
+          images: { "2": [], "5": [], "6": [], "7": [] },
+        });
+      });
+      const pushImages = (list, type) => {
+        if (Array.isArray(list)) {
+          list.forEach((item) => {
+            const name = String(item?.spec_name ?? item?.specName ?? "").trim();
+            const value = String(item?.spec_value ?? item?.specValue ?? "").trim();
+            const row = rows.find((r) => r.name === name && r.value === value) || rows[0];
+            if (!row) return;
+            const key = buildSpecKey(row);
+            const bucket = nextBuckets.get(key);
+            if (!bucket) return;
+            const imgs = Array.isArray(item?.images) ? item.images : [];
+            imgs.forEach((img) => {
+              const url = String(img?.img_url ?? img?.url ?? "").trim();
+              if (!url) return;
+              bucket.images[type].push({ img_url: url, img_id: String(img?.img_id ?? "0") });
+            });
+          });
+          return;
+        }
+        if (!isRecord(list)) return;
+        Object.entries(list).forEach(([valueId, imgs]) => {
+          const value = idToValue.get(String(valueId)) || "";
+          const row = rows.find((r) => r.value === value) || rows[0];
+          if (!row) return;
+          const key = buildSpecKey(row);
+          const bucket = nextBuckets.get(key);
+          if (!bucket) return;
+          const imgList = Array.isArray(imgs) ? imgs : [];
+          imgList.forEach((img) => {
+            const url = String(img?.img_url ?? img?.url ?? "").trim();
+            if (!url) return;
+            bucket.images[type].push({ img_url: url, img_id: String(img?.img_id ?? "0") });
+          });
+        });
+      };
+      pushImages(albumImages, "2");
+      pushImages(squareImages, "5");
+      pushImages(colorBlockImages, "6");
+      pushImages(detailImages, "7");
+      if (nextBuckets.size) sheinImageBuckets = nextBuckets;
+    }
+
+    renderSpecCards();
+    syncSpecDefines();
+    renderSheinTemplateForm();
+    renderImagePreview();
+    setStep(1);
+  };
+
+  const loadSheinInfoForEdit = async (goodsId) => {
+    const id = String(goodsId ?? "").trim();
+    if (!id) return;
+    setSummary("加载详情...");
+    try {
+      const res = await postAuthedJson("/api/shein/info", { goods_id: id, id });
+      if (String(res?.code) === "2") {
+        clearAuth();
+        window.location.href = "/login.html";
+        return;
+      }
+      if (String(res?.code) !== "0") {
+        setSummary(res?.msg || "加载失败");
+        return;
+      }
+      const data = res?.data?.data ?? res?.data ?? {};
+      await applySheinEditData(data, id);
+    } catch {
+      setSummary("网络异常，请稍后重试。");
+    }
+  };
 
   async function fetchTemplate(typeId, opts = {}) {
     const tid = String(typeId ?? "").trim();
@@ -1978,6 +2400,8 @@ export function setupShein() {
         setPre(createPre, { code: "1", msg: "请先选择类目" });
         return;
       }
+      syncSheinGoodsAttr();
+      syncSheinOthers();
       const payload = {
         goods_name: String(goodsNameInput?.value || "").trim(),
         goods_sn: String(goodsSnInput?.value || "").trim(),
@@ -2008,9 +2432,22 @@ export function setupShein() {
           window.location.href = "/login.html";
           return;
         }
-        setPre(createPre, res);
         lastSubmitOk = String(res?.code) === "0";
-        if (stepHint4) stepHint4.textContent = lastSubmitOk ? "提交成功" : "提交失败";
+        if (lastSubmitOk) {
+          if (createPre) createPre.textContent = "";
+          if (stepHint4) stepHint4.textContent = "";
+          resetUpload();
+          setSubView("list", { updateHash: true });
+          try {
+            window.localStorage.removeItem("topm:cat-selection:shein");
+            window.sessionStorage.removeItem("topm:shein-edit-id");
+          } catch {
+            // ignore
+          }
+          return;
+        }
+        setPre(createPre, res);
+        if (stepHint4) stepHint4.textContent = "提交失败";
       } catch {
         setPre(createPre, { code: "1", msg: "提交失败" });
       } finally {

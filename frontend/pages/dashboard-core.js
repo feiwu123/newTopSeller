@@ -8,7 +8,7 @@ import { setupMerchantsLogistics } from "./dashboard-logistics.js";
 import { setupOrdersList } from "./dashboard-orders.js";
 import { setupTikTok } from "./dashboard-tiktok.js?v=2026-01-21-6";
 import { setupShein } from "./dashboard-shein.js";
-import { setupWholesalesGoods, setupWholesalesSender, setupWholesalesOrders } from "./dashboard-wholesales.js";
+import { setupWholesalesGoods, setupWholesalesSender, setupWholesalesOrders, setupWholesalesRefunds } from "./dashboard-wholesales.js";
 export function initDashboardPage() {
   const auth = getAuth();
   if (!auth?.token) {
@@ -103,4 +103,5 @@ export function initDashboardPage() {
   setupWholesalesGoods();
   setupWholesalesSender();
   setupWholesalesOrders();
+  setupWholesalesRefunds();
 }

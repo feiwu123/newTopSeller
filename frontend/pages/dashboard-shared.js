@@ -154,6 +154,7 @@ function showOnlyView(viewId) {
     "view-wholesales-sender",
     "view-wholesales-goods",
     "view-wholesales-orders",
+    "view-wholesales-refunds",
   ];
   for (const id of ids) {
     const el = document.getElementById(id);
@@ -191,6 +192,7 @@ function routeFromHash() {
   if (h === "wholesales-sender") return "wholesales-sender";
   if (h === "wholesales-goods") return "wholesales-goods";
   if (h === "wholesales-orders") return "wholesales-orders";
+  if (h === "wholesales-refunds") return "wholesales-refunds";
   return "overview";
 }
 
@@ -1135,6 +1137,7 @@ function setupRoutes() {
     "wholesales-sender": { view: "view-wholesales-sender", title: "批采发货人" },
     "wholesales-goods": { view: "view-wholesales-goods", title: "批采商品" },
     "wholesales-orders": { view: "view-wholesales-orders", title: "批采订单" },
+    "wholesales-refunds": { view: "view-wholesales-refunds", title: "批采退款订单" },
   };
 
   // Restore last route if user refreshes without hash.

@@ -27,6 +27,11 @@ export function setupTikTok() {
   const salesAttrCustomInput = document.getElementById("tiktok-sales-attr-custom");
   const salesAttrCustomAdd = document.getElementById("tiktok-sales-attr-custom-add");
   const salesAttrValuesEl = document.getElementById("tiktok-sales-attr-values");
+  const salesModeToggle = document.getElementById("tiktok-sales-mode-toggle");
+  const salesModeLabel = document.getElementById("tiktok-sales-mode-label");
+  const salesAttrNameBlock = document.getElementById("tiktok-sales-attr-name-block");
+  const priceStockCard = document.getElementById("tiktok-price-stock-card");
+  const skuGridBlock = document.getElementById("tiktok-sku-grid-block");
   const skuGridEl = document.getElementById("tiktok-sku-grid");
   const skuModal = document.getElementById("tiktok-sku-modal");
   const skuModalOverlay = document.getElementById("tiktok-sku-modal-overlay");
@@ -100,6 +105,34 @@ export function setupTikTok() {
 
   let activeUploadStep = 1;
   let unlockedUploadStep = 1;
+  let salesModeEnabled = true;
+  let skuModalMode = "full";
+  const SIMPLE_SKU_KEY = "__single_sku__";
+
+  const applySalesMode = (enabled) => {
+    const on = Boolean(enabled);
+    salesModeEnabled = on;
+    const toggle = (el, show) => {
+      if (!el) return;
+      el.hidden = !show;
+      el.classList.toggle("hidden", !show);
+    };
+    toggle(salesAttrNameBlock, on);
+    toggle(salesAttrValuesEl, on);
+    toggle(skuGridBlock, on);
+    toggle(priceStockCard, !on);
+    if (salesModeLabel) salesModeLabel.textContent = on ? "已开启" : "已关闭";
+    if (!on && !skuDraft.has(SIMPLE_SKU_KEY)) {
+      skuDraft.set(SIMPLE_SKU_KEY, {
+        sku_identifier_type: "GTIN",
+        sku_identifier_code: "",
+        product_sn: "",
+        product_number: "",
+        product_price: "",
+        attr_img_list: [],
+      });
+    }
+  };
 
   // Build step panels dynamically to mimic TEMU layout without touching HTML markup.
   (() => {
@@ -209,6 +242,20 @@ export function setupTikTok() {
     step4.classList.add("hidden");
     step5.classList.add("hidden");
   })();
+
+  if (salesModeToggle) {
+    applySalesMode(salesModeToggle.checked);
+    salesModeToggle.addEventListener("change", () => {
+      applySalesMode(salesModeToggle.checked);
+    });
+  } else {
+    applySalesMode(true);
+  }
+  if (priceStockCard) {
+    priceStockCard.addEventListener("click", () => {
+      openPriceStockModal();
+    });
+  }
 
   const syncStepNodes = () => {
     stepPanels = [
@@ -1499,6 +1546,11 @@ export function setupTikTok() {
       ["tiktok-goods-name", "goods_name"],
       ["tiktok-goods-sn", "goods_sn"],
       ["tiktok-goods-brief", "goods_brief"],
+      ["tiktok-package-weight", "package_weight"],
+      ["tiktok-package-weight-unit", "package_weight_unit"],
+      ["tiktok-package-width", "package_width"],
+      ["tiktok-package-height", "package_height"],
+      ["tiktok-package-length", "package_length"],
       ["tiktok-sku-price", "sku_price"],
       ["tiktok-sku-stock", "sku_stock"],
       ["tiktok-sku-identifier-code", "sku_identifier_code"],
@@ -2219,9 +2271,14 @@ export function setupTikTok() {
     return Array.from(new Set(list)).sort().join(",");
   };
 
-  const isSkuComplete = (row) => {
+  const isSkuComplete = (row, opts = {}) => {
     if (!row) return false;
-    const required = ["product_sn", "product_number", "product_price", "weight", "width", "height", "length"];
+    const mode = opts?.mode || (salesModeEnabled ? "full" : "simple");
+    if (mode === "simple") {
+      const required = ["product_number", "product_price"];
+      return !required.some((k) => !String(row?.[k] ?? "").trim());
+    }
+    const required = ["product_sn", "product_number", "product_price"];
     if (required.some((k) => !String(row?.[k] ?? "").trim())) return false;
     const images = Array.isArray(row.attr_img_list) ? row.attr_img_list : [];
     return images.length > 0;
@@ -2252,10 +2309,6 @@ export function setupTikTok() {
             product_sn: "",
             product_number: "",
             product_price: "",
-            weight: "",
-            width: "",
-            height: "",
-            length: "",
             attr_img_list: [],
           });
         }
@@ -2363,15 +2416,36 @@ export function setupTikTok() {
 
   const renderSkuModalStatus = () => {
     if (!skuModalStatus) return;
-    const complete = isSkuComplete(skuDraft.get(activeSkuKey));
+    const complete = isSkuComplete(skuDraft.get(activeSkuKey), { mode: skuModalMode });
     skuModalStatus.textContent = complete ? "已完成" : "未完成";
     skuModalStatus.className = complete
       ? "text-[11px] px-2 py-1 rounded-full border font-black text-emerald-700 bg-emerald-50 border-emerald-200"
       : "text-[11px] px-2 py-1 rounded-full border font-black text-amber-700 bg-amber-50 border-amber-200";
   };
 
+  const setSkuModalMode = (mode) => {
+    skuModalMode = mode === "simple" ? "simple" : "full";
+    if (!skuModal) return;
+    const hideFields = ["weight", "width", "height", "length"];
+    hideFields.forEach((field) => {
+      const input = skuModal.querySelector(`[data-sku-modal-field="${field}"]`);
+      const wrap = input?.closest(".space-y-1");
+      if (!wrap) return;
+      const show = skuModalMode === "full";
+      wrap.hidden = !show;
+      wrap.classList.toggle("hidden", !show);
+    });
+    const imageWrap = skuModalImages?.closest(".space-y-2");
+    if (imageWrap) {
+      const show = skuModalMode === "full";
+      imageWrap.hidden = !show;
+      imageWrap.classList.toggle("hidden", !show);
+    }
+  };
+
   function openSkuModal(key, label) {
     if (!skuModal) return;
+    setSkuModalMode("full");
     activeSkuKey = key;
     if (!skuDraft.has(key)) skuDraft.set(key, { attr_img_list: [] });
     const row = skuDraft.get(key);
@@ -2388,6 +2462,35 @@ export function setupTikTok() {
     renderSkuModalStatus();
     skuModal.classList.remove("hidden");
   }
+
+  const openPriceStockModal = () => {
+    if (!skuModal) return;
+    setSkuModalMode("simple");
+    activeSkuKey = SIMPLE_SKU_KEY;
+    if (!skuDraft.has(SIMPLE_SKU_KEY)) {
+      skuDraft.set(SIMPLE_SKU_KEY, {
+        sku_identifier_type: "GTIN",
+        sku_identifier_code: "",
+        product_sn: "",
+        product_number: "",
+        product_price: "",
+        attr_img_list: [],
+      });
+    }
+    const row = skuDraft.get(SIMPLE_SKU_KEY);
+    if (!String(row?.sku_identifier_type ?? "").trim()) row.sku_identifier_type = "GTIN";
+    if (skuModalTitle) skuModalTitle.textContent = "Price & Stock";
+    if (skuModalSubtitle) skuModalSubtitle.textContent = "统一价格与库存";
+    skuModal.querySelectorAll("[data-sku-modal-field]").forEach((input) => {
+      const field = input.getAttribute("data-sku-modal-field");
+      let next = row?.[field] ?? "";
+      if (field === "sku_identifier_type" && !String(next || "").trim()) next = "GTIN";
+      input.value = next;
+    });
+    renderSkuModalImages();
+    renderSkuModalStatus();
+    skuModal.classList.remove("hidden");
+  };
 
   function closeSkuModal() {
     if (!skuModal) return;
@@ -2528,14 +2631,30 @@ export function setupTikTok() {
     });
   };
 
-  const isDescOk = () => {
-    const name = String(document.getElementById("tiktok-goods-name")?.value ?? "").trim();
-    const sn = String(document.getElementById("tiktok-goods-sn")?.value ?? "").trim();
-    const brief = String(document.getElementById("tiktok-goods-brief")?.value ?? "").trim();
-    return Boolean(name && sn && brief);
+  const getMissingDescFields = () => {
+    const fields = [
+      ["tiktok-goods-name", "商品名称"],
+      ["tiktok-goods-sn", "商品货号"],
+      ["tiktok-goods-brief", "商品描述"],
+      ["tiktok-package-weight", "Package weight"],
+      ["tiktok-package-weight-unit", "Package weight 单位"],
+      ["tiktok-package-width", "宽(次长边)"],
+      ["tiktok-package-height", "高(最短边)"],
+      ["tiktok-package-length", "长(最长边)"],
+    ];
+    return fields
+      .map(([id, label]) => [label, String(document.getElementById(id)?.value ?? "").trim()])
+      .filter(([, val]) => !val)
+      .map(([label]) => label);
   };
 
+  const isDescOk = () => getMissingDescFields().length === 0;
+
   const isAllSkuCombosComplete = () => {
+    if (!salesModeEnabled) {
+      const row = skuDraft.get(SIMPLE_SKU_KEY);
+      return isSkuComplete(row, { mode: "simple" });
+    }
     if (!salesAttrSelections.size) return false;
     const combos = getTikTokSalesCombos();
     if (!combos.length) return false;
@@ -2638,7 +2757,12 @@ export function setupTikTok() {
     if (stepNext1) stepNext1.disabled = !p.allow2;
     if (stepNext2) stepNext2.disabled = !p.allow3;
     if (stepNext3) stepNext3.disabled = !p.allow4;
-    if (stepNext4) stepNext4.disabled = !p.allow5;
+    if (stepNext4) {
+      stepNext4.disabled = false;
+      stepNext4.classList.toggle("opacity-50", !p.allow5);
+      stepNext4.classList.toggle("cursor-not-allowed", !p.allow5);
+      stepNext4.dataset.allow = p.allow5 ? "1" : "0";
+    }
   };
 
   const setUploadStep = (step) => {
@@ -4127,6 +4251,11 @@ export function setupTikTok() {
         ali_seller_sn: document.getElementById("tiktok-ali-seller-sn")?.value?.trim(),
         cat_id: catId,
         goods_brief: document.getElementById("tiktok-goods-brief")?.value?.trim(),
+        package_weight: document.getElementById("tiktok-package-weight")?.value?.trim(),
+        package_weight_unit: document.getElementById("tiktok-package-weight-unit")?.value?.trim(),
+        package_width: document.getElementById("tiktok-package-width")?.value?.trim(),
+        package_height: document.getElementById("tiktok-package-height")?.value?.trim(),
+        package_length: document.getElementById("tiktok-package-length")?.value?.trim(),
         tiktok_product_attributes: ensureJsonString(document.getElementById("tiktok-attrs-json")?.value),
         goods_img_json: ensureJsonString(document.getElementById("tiktok-img-json")?.value),
         easyswitch: 0,
@@ -4152,6 +4281,11 @@ export function setupTikTok() {
         "goods_sn",
         "cat_id",
         "goods_brief",
+        "package_weight",
+        "package_weight_unit",
+        "package_width",
+        "package_height",
+        "package_length",
         "tiktok_product_attributes",
         "goods_img_json",
         "sku_stock",
@@ -4185,7 +4319,14 @@ export function setupTikTok() {
 
   if (stepNext1) {
     stepNext1.addEventListener("click", async () => {
+      const originalHtml = stepNext1.innerHTML;
+      stepNext1.disabled = true;
+      stepNext1.classList.add("opacity-70", "cursor-not-allowed");
+      stepNext1.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i>加载中...';
       const ok = await ensureTemplateReady();
+      stepNext1.innerHTML = originalHtml;
+      stepNext1.disabled = false;
+      stepNext1.classList.remove("opacity-70", "cursor-not-allowed");
       if (!ok) return;
       unlockToStep(2);
       setUploadStep(2);
@@ -4235,17 +4376,33 @@ export function setupTikTok() {
   }
   if (stepNext4) {
     stepNext4.addEventListener("click", () => {
+      const descPanel = document.getElementById("tiktok-panel-desc");
+      let descInlineMsg = descPanel?.querySelector?.("[data-step4-inline-msg]");
+      if (descPanel && !descInlineMsg) {
+        descInlineMsg = document.createElement("div");
+        descInlineMsg.dataset.step4InlineMsg = "1";
+        descInlineMsg.className =
+          "hidden mt-2 text-xs px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700";
+        descPanel.appendChild(descInlineMsg);
+      }
       if (!isDescOk()) {
-        if (selfCheckMsg) {
-          selfCheckMsg.className =
-            "mt-2 text-xs px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700";
-          selfCheckMsg.textContent = "请先填写商品名称/货号/描述。";
-          selfCheckMsg.classList.remove("hidden");
+        if (descInlineMsg) {
+          const missing = getMissingDescFields();
+          descInlineMsg.textContent = missing.length
+            ? `请先填写：${missing.join("、")}`
+            : "请先填写商品名称/货号/描述/包装信息。";
+          descInlineMsg.classList.remove("hidden");
         }
         return;
       }
+      if (descInlineMsg) descInlineMsg.classList.add("hidden");
       unlockToStep(5);
       setUploadStep(5);
+      const step5Panel = document.getElementById("tiktok-panel-submit");
+      if (step5Panel && step5Panel.classList.contains("hidden") && descInlineMsg) {
+        descInlineMsg.textContent = "步骤 5 未显示，请刷新页面或检查步骤模板是否完整。";
+        descInlineMsg.classList.remove("hidden");
+      }
     });
   }
   if (stepBack2) stepBack2.addEventListener("click", () => {
@@ -4262,4 +4419,24 @@ export function setupTikTok() {
   renderAttrSummary();
   renderTikTokImagePreview();
   renderCertifications();
+  [
+    "tiktok-goods-name",
+    "tiktok-goods-sn",
+    "tiktok-goods-brief",
+    "tiktok-package-weight",
+    "tiktok-package-weight-unit",
+    "tiktok-package-width",
+    "tiktok-package-height",
+    "tiktok-package-length",
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      const descPanel = document.getElementById("tiktok-panel-desc");
+      const descInlineMsg = descPanel?.querySelector?.("[data-step4-inline-msg]");
+      if (descInlineMsg && isDescOk()) descInlineMsg.classList.add("hidden");
+      renderTikTokStepper();
+    });
+    el.addEventListener("change", renderTikTokStepper);
+  });
 }
