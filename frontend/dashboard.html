@@ -1862,6 +1862,8 @@
                           <option value="GTIN">GTIN</option>
                           <option value="EAN">EAN</option>
                           <option value="UPC">UPC</option>
+                          <option value="ISBN">ISBN</option>
+                          <option value="JAN">JAN</option>
                         </select>
                         <div class="w-px h-6 bg-slate-200"></div>
                         <input
@@ -2064,7 +2066,31 @@
                     </div>
                     <div class="space-y-2">
                       <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                        Package weight*
+                        &#x5546;&#x54C1;&#x8BE6;&#x60C5;
+                        <span class="text-[10px] text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black">&#x5FC5;&#x586B;</span>
+                      </div>
+                      <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+                        <div id="tiktok-goods-desc-toolbar" class="flex flex-wrap gap-2 text-[11px]">
+                          <button type="button" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-semibold" data-rt-cmd="bold">Bold</button>
+                          <button type="button" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-semibold" data-rt-cmd="italic">Italic</button>
+                          <button type="button" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-semibold" data-rt-cmd="underline">Underline</button>
+                          <button type="button" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-semibold" data-rt-cmd="insertUnorderedList">UL</button>
+                          <button type="button" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-semibold" data-rt-cmd="insertOrderedList">OL</button>
+                          <button type="button" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-semibold" data-rt-cmd="createLink">Link</button>
+                          <button type="button" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-semibold" data-rt-cmd="removeFormat">&#x6E05;&#x9664;&#x683C;&#x5F0F;</button>
+                        </div>
+                        <div
+                          id="tiktok-goods-desc-editor"
+                          class="min-h-[120px] w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
+                          contenteditable="true"
+                        ></div>
+                        <div class="text-[11px] text-slate-400">&#x4E0D;&#x652F;&#x6301;&#x4E0A;&#x4F20;&#x56FE;&#x7247;</div>
+                        <textarea id="tiktok-goods-desc" class="hidden"></textarea>
+                      </div>
+                    </div>
+                    <div class="space-y-2">
+                      <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                        weight / unit*
                         <span class="text-[10px] text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black">&#x5FC5;&#x586B;</span>
                       </div>
                       <div class="flex items-center gap-2">
@@ -2080,14 +2106,14 @@
                           type="number"
                           min="0"
                           class="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                          placeholder="Package weight"
+                          placeholder="weight"
                         />
                       </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div class="space-y-2">
                         <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                          &#x5BBD;(&#x6B21;&#x957F;&#x8FB9;),&#x5355;&#x4F4D;cm
+                          wide (cm)
                           <span class="text-[10px] text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black">&#x5FC5;&#x586B;</span>
                         </div>
                         <input
@@ -2095,12 +2121,12 @@
                           type="number"
                           min="0"
                           class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                          placeholder="cm"
+                          placeholder="wide"
                         />
                       </div>
                       <div class="space-y-2">
                         <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                          &#x9AD8;(&#x6700;&#x77ED;&#x8FB9;),&#x5355;&#x4F4D;cm
+                          high (cm)
                           <span class="text-[10px] text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black">&#x5FC5;&#x586B;</span>
                         </div>
                         <input
@@ -2108,12 +2134,12 @@
                           type="number"
                           min="0"
                           class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                          placeholder="cm"
+                          placeholder="high"
                         />
                       </div>
                       <div class="space-y-2">
                         <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                          &#x957F;(&#x6700;&#x957F;&#x8FB9;),&#x5355;&#x4F4D;cm
+                          length (cm)
                           <span class="text-[10px] text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black">&#x5FC5;&#x586B;</span>
                         </div>
                         <input
@@ -2121,7 +2147,7 @@
                           type="number"
                           min="0"
                           class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                          placeholder="cm"
+                          placeholder="length"
                         />
                       </div>
                     </div>
@@ -3446,6 +3472,7 @@
                   <option value="EAN">EAN</option>
                   <option value="UPC">UPC</option>
                   <option value="ISBN">ISBN</option>
+                  <option value="JAN">JAN</option>
                 </select>
                 <input data-sku-modal-field="sku_identifier_code" class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white" />
               </div>

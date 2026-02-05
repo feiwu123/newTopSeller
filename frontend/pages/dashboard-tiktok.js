@@ -20,6 +20,9 @@ export function setupTikTok() {
   const uploadAttrsBtn = document.getElementById("tiktok-upload-attrs");
   const uploadPre = document.getElementById("tiktok-upload-result");
   const imagePreview = document.getElementById("tiktok-image-preview");
+  const goodsDescEditor = document.getElementById("tiktok-goods-desc-editor");
+  const goodsDescToolbar = document.getElementById("tiktok-goods-desc-toolbar");
+  const goodsDescField = document.getElementById("tiktok-goods-desc");
   const salesAttrBlock = document.getElementById("tiktok-sales-attr-block");
   const salesAttrFileInput = document.getElementById("tiktok-sales-attr-file");
   const salesAttrNamesEl = document.getElementById("tiktok-sales-attr-names");
@@ -108,6 +111,7 @@ export function setupTikTok() {
   let salesModeEnabled = true;
   let skuModalMode = "full";
   const SIMPLE_SKU_KEY = "__single_sku__";
+  const skuDraft = new Map();
 
   const applySalesMode = (enabled) => {
     const on = Boolean(enabled);
@@ -132,6 +136,7 @@ export function setupTikTok() {
         attr_img_list: [],
       });
     }
+    renderPriceStockCardStatus();
   };
 
   // Build step panels dynamically to mimic TEMU layout without touching HTML markup.
@@ -517,7 +522,6 @@ export function setupTikTok() {
   let salesAttrRows = [];
   let salesAttrUploadInFlight = false;
   const salesAttrSelections = new Map();
-  const skuDraft = new Map();
   let activeSkuKey = "";
   let lastCertifications = [];
   const certificationUploads = new Map(); // certId -> [uploadData]
@@ -566,6 +570,7 @@ export function setupTikTok() {
     "tiktok-goods-sn",
     "tiktok-ali-seller-sn",
     "tiktok-goods-brief",
+    "tiktok-goods-desc",
     "tiktok-attrs-json",
     "tiktok-img-json",
     "tiktok-extra-json",
@@ -609,6 +614,31 @@ export function setupTikTok() {
     const el = document.getElementById(id);
     if (!el || !("value" in el)) return;
     el.value = value == null ? "" : String(value);
+  };
+
+  const sanitizeGoodsDesc = (html) => {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = String(html ?? "");
+    wrap.querySelectorAll("img, video, iframe, object, embed, svg").forEach((node) => node.remove());
+    return wrap.innerHTML.trim();
+  };
+
+  const syncGoodsDescField = () => {
+    if (!goodsDescEditor || !goodsDescField) return;
+    goodsDescField.value = sanitizeGoodsDesc(goodsDescEditor.innerHTML);
+    queueDraftSave();
+  };
+
+  const syncGoodsDescEditor = () => {
+    if (!goodsDescEditor || !goodsDescField) return;
+    goodsDescEditor.innerHTML = sanitizeGoodsDesc(goodsDescField.value);
+  };
+
+  const getGoodsDescText = () => {
+    if (!goodsDescField) return "";
+    const wrap = document.createElement("div");
+    wrap.innerHTML = goodsDescField.value || "";
+    return String(wrap.textContent ?? "").trim();
   };
 
   const getCatDraft = () => {
@@ -681,7 +711,53 @@ export function setupTikTok() {
         writeFieldValue(id, values[id]);
       }
     });
+    syncGoodsDescEditor();
   };
+
+  if (goodsDescToolbar && goodsDescEditor) {
+    goodsDescToolbar.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-rt-cmd]");
+      if (!btn) return;
+      const cmd = String(btn.dataset.rtCmd ?? "").trim();
+      if (!cmd) return;
+      goodsDescEditor.focus();
+      if (cmd === "createLink") {
+        const url = window.prompt("请输入链接地址");
+        if (url) document.execCommand("createLink", false, url);
+      } else {
+        document.execCommand(cmd, false, null);
+      }
+      window.setTimeout(() => {
+        syncGoodsDescField();
+        renderTikTokStepper();
+      }, 0);
+    });
+  }
+
+  if (goodsDescEditor) {
+    goodsDescEditor.addEventListener("input", () => {
+      syncGoodsDescField();
+      renderTikTokStepper();
+    });
+    goodsDescEditor.addEventListener("blur", syncGoodsDescField);
+    goodsDescEditor.addEventListener("paste", (e) => {
+      const items = Array.from(e.clipboardData?.items || []);
+      if (items.some((item) => String(item.type || "").startsWith("image/"))) {
+        e.preventDefault();
+        return;
+      }
+      window.setTimeout(() => {
+        syncGoodsDescField();
+        renderTikTokStepper();
+      }, 0);
+    });
+    goodsDescEditor.addEventListener("drop", (e) => {
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.some((file) => String(file.type || "").startsWith("image/"))) {
+        e.preventDefault();
+      }
+    });
+  }
 
   const restoreAttrSelectionsFromDraft = (draft) => {
     if (!draft || !draft.values) return;
@@ -1546,17 +1622,21 @@ export function setupTikTok() {
       ["tiktok-goods-name", "goods_name"],
       ["tiktok-goods-sn", "goods_sn"],
       ["tiktok-goods-brief", "goods_brief"],
-      ["tiktok-package-weight", "package_weight"],
-      ["tiktok-package-weight-unit", "package_weight_unit"],
-      ["tiktok-package-width", "package_width"],
-      ["tiktok-package-height", "package_height"],
-      ["tiktok-package-length", "package_length"],
+      ["tiktok-goods-desc", "goods_desc"],
+      ["tiktok-package-weight", "weight"],
+      ["tiktok-package-weight-unit", "unit"],
+      ["tiktok-package-width", "wide"],
+      ["tiktok-package-height", "high"],
+      ["tiktok-package-length", "length"],
       ["tiktok-sku-price", "sku_price"],
       ["tiktok-sku-stock", "sku_stock"],
       ["tiktok-sku-identifier-code", "sku_identifier_code"],
     ];
     const missing = required
-      .map(([id, label]) => [label, document.getElementById(id)?.value?.trim() || ""])
+      .map(([id, label]) => {
+        if (id === "tiktok-goods-desc") return [label, getGoodsDescText()];
+        return [label, document.getElementById(id)?.value?.trim() || ""];
+      })
       .filter(([, v]) => !v)
       .map(([label]) => label);
 
@@ -1632,6 +1712,7 @@ export function setupTikTok() {
       "tiktok-goods-name",
       "tiktok-goods-sn",
       "tiktok-goods-brief",
+      "tiktok-goods-desc",
       "tiktok-attrs-json",
       "tiktok-img-json",
       "tiktok-extra-json",
@@ -1649,6 +1730,7 @@ export function setupTikTok() {
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
+    if (goodsDescEditor) goodsDescEditor.innerHTML = "";
     const unit = document.getElementById("tiktok-unit");
     if (unit) unit.value = "KILOGRAM";
     if (fileInput) fileInput.value = "";
@@ -2089,7 +2171,8 @@ export function setupTikTok() {
             v.value_id ??
             v.valueId ??
             v.valueID;
-          return { ...v, name: label != null ? String(label) : "" };
+          const valueId = v.value_id ?? v.valueId ?? v.valueID ?? v.vid ?? v.id ?? "";
+          return { ...v, name: label != null ? String(label) : "", value_id: valueId != null ? String(valueId) : "" };
         }
         return null;
       })
@@ -2135,6 +2218,17 @@ export function setupTikTok() {
         return { id: String(id), name: String(name) };
       })
       .filter((s) => s && s.id);
+  };
+
+  const findAttrValueId = (item, val) => {
+    const list = Array.isArray(item?.values) ? item.values : [];
+    const target = String(val ?? "").trim();
+    if (!target) return "";
+    const hit = list.find((v) => {
+      const name = String(v?.name ?? v?.value ?? v?.label ?? v?.title ?? v?.text ?? v?.id ?? "").trim();
+      return name === target;
+    });
+    return String(hit?.value_id ?? hit?.valueId ?? hit?.valueID ?? hit?.vid ?? hit?.id ?? "").trim();
   };
 
   const normalizeSalesAttrName = (val) => String(val ?? "").trim();
@@ -2271,7 +2365,7 @@ export function setupTikTok() {
     return Array.from(new Set(list)).sort().join(",");
   };
 
-  const isSkuComplete = (row, opts = {}) => {
+  function isSkuComplete(row, opts = {}) {
     if (!row) return false;
     const mode = opts?.mode || (salesModeEnabled ? "full" : "simple");
     if (mode === "simple") {
@@ -2282,6 +2376,27 @@ export function setupTikTok() {
     if (required.some((k) => !String(row?.[k] ?? "").trim())) return false;
     const images = Array.isArray(row.attr_img_list) ? row.attr_img_list : [];
     return images.length > 0;
+  }
+
+  const normalizeIdentifierCode = (raw) =>
+    String(raw ?? "")
+      .trim()
+      .replace(/[\s-]+/g, "")
+      .replace(/[０-９]/g, (d) => String(d.charCodeAt(0) - 65248))
+      .toUpperCase()
+      .replace(/[^0-9X]/g, "");
+
+  const validateIdentifierCode = (type, code) => {
+    const t = String(type ?? "").trim().toUpperCase();
+    const c = normalizeIdentifierCode(code);
+    if (!t || !c) return false;
+    const isDigits = (len) => new RegExp(`^\\d{${len}}$`).test(c);
+    if (t === "GTIN") return isDigits(14);
+    if (t === "EAN") return isDigits(8) || isDigits(13) || isDigits(14);
+    if (t === "UPC") return isDigits(12);
+    if (t === "ISBN") return isDigits(13) || /^[0-9]{9}X$/.test(c);
+    if (t === "JAN") return isDigits(8) || isDigits(13);
+    return false;
   };
 
   const renderTikTokSkuGrid = () => {
@@ -2334,6 +2449,28 @@ export function setupTikTok() {
       .join("");
     renderTikTokStepper();
   };
+
+  function renderPriceStockCardStatus() {
+    if (!priceStockCard) return;
+    const row = skuDraft.get(SIMPLE_SKU_KEY);
+    const done = isSkuComplete(row, { mode: "simple" });
+    let statusEl = priceStockCard.querySelector("[data-price-stock-status]");
+    if (!statusEl) {
+      statusEl = document.createElement("span");
+      statusEl.dataset.priceStockStatus = "1";
+      statusEl.className =
+        "ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black";
+      const title = priceStockCard.querySelector(".text-xs") || priceStockCard;
+      title.appendChild(statusEl);
+    }
+    statusEl.textContent = done ? "已完成" : "未填写";
+    statusEl.classList.toggle("text-emerald-700", done);
+    statusEl.classList.toggle("bg-emerald-50", done);
+    statusEl.classList.toggle("border-emerald-200", done);
+    statusEl.classList.toggle("text-amber-700", !done);
+    statusEl.classList.toggle("bg-amber-50", !done);
+    statusEl.classList.toggle("border-amber-200", !done);
+  }
 
   const pickTikTokImageUrls = (data) => {
     const urls = [];
@@ -2636,16 +2773,21 @@ export function setupTikTok() {
       ["tiktok-goods-name", "商品名称"],
       ["tiktok-goods-sn", "商品货号"],
       ["tiktok-goods-brief", "商品描述"],
-      ["tiktok-package-weight", "Package weight"],
-      ["tiktok-package-weight-unit", "Package weight 单位"],
-      ["tiktok-package-width", "宽(次长边)"],
-      ["tiktok-package-height", "高(最短边)"],
-      ["tiktok-package-length", "长(最长边)"],
+      ["tiktok-goods-desc", "商品详情"],
+      ["tiktok-package-weight", "weight"],
+      ["tiktok-package-weight-unit", "unit"],
+      ["tiktok-package-width", "wide"],
+      ["tiktok-package-height", "high"],
+      ["tiktok-package-length", "length"],
     ];
-    return fields
-      .map(([id, label]) => [label, String(document.getElementById(id)?.value ?? "").trim()])
+    const missing = fields
+      .map(([id, label]) => {
+        if (id === "tiktok-goods-desc") return [label, getGoodsDescText()];
+        return [label, String(document.getElementById(id)?.value ?? "").trim()];
+      })
       .filter(([, val]) => !val)
       .map(([label]) => label);
+    return missing;
   };
 
   const isDescOk = () => getMissingDescFields().length === 0;
@@ -2763,6 +2905,7 @@ export function setupTikTok() {
       stepNext4.classList.toggle("cursor-not-allowed", !p.allow5);
       stepNext4.dataset.allow = p.allow5 ? "1" : "0";
     }
+    renderPriceStockCardStatus();
   };
 
   const setUploadStep = (step) => {
@@ -2900,15 +3043,18 @@ export function setupTikTok() {
         grid.className = "grid grid-cols-2 sm:grid-cols-3 gap-2";
         for (const v of list) {
           const label = String(v?.name ?? v?.value ?? v?.id ?? "-");
+          const valueId = String(v?.value_id ?? v?.valueId ?? v?.valueID ?? v?.vid ?? v?.id ?? label);
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = baseBtn;
           btn.dataset.value = label;
+          btn.dataset.valueId = valueId;
           btn.innerHTML = `<span class="truncate">${escapeHtml(label)}</span><i class="fas fa-check text-emerald-600 hidden"></i>`;
           setBtnSelected(btn, isChosen(label));
           btn.addEventListener("click", async () => {
             if (btn.dataset.pending === "1") return;
             const val = String(btn.dataset.value ?? "").trim();
+            const valId = String(btn.dataset.valueId ?? "").trim() || val;
             if (!val) return;
             if (useDraft && draft) {
               const has = draft.has(val);
@@ -2938,12 +3084,12 @@ export function setupTikTok() {
               return;
             }
             if (isMulti) {
-              setAttrSelection(item.id, val, val, { multiple: true, allowLocal: true });
+              setAttrSelection(item.id, val, valId, { multiple: true, allowLocal: true });
               setBtnSelected(btn, true);
               if (typeof onSelected === "function") onSelected(val);
               return;
             }
-            setAttrSelection(item.id, val, val, { multiple: false, allowLocal: true });
+            setAttrSelection(item.id, val, valId, { multiple: false, allowLocal: true });
             grid.querySelectorAll("button").forEach((b) => setBtnSelected(b, String(b.dataset.value) === val));
             if (typeof onSelected === "function") onSelected(val);
           });
@@ -3116,7 +3262,8 @@ export function setupTikTok() {
             if (typeof hooks.onSelected === "function") hooks.onSelected(val);
             return true;
           }
-          setAttrSelection(item?.id, val, val, { multiple: false, allowLocal: true });
+          const valueId = findAttrValueId(item, val) || val;
+          setAttrSelection(item?.id, val, valueId, { multiple: false, allowLocal: true });
           if (typeof hooks.onSelected === "function") hooks.onSelected(val);
           return true;
         }
@@ -3124,7 +3271,10 @@ export function setupTikTok() {
           if (!chosen.includes(val)) removeAttrSelection(item?.id, val);
         }
         for (const val of chosen) {
-          if (!current.includes(val)) setAttrSelection(item?.id, val, val, { multiple: true, allowLocal: true });
+          if (!current.includes(val)) {
+            const valueId = findAttrValueId(item, val) || val;
+            setAttrSelection(item?.id, val, valueId, { multiple: true, allowLocal: true });
+          }
         }
         if (typeof hooks.onSelected === "function") hooks.onSelected(chosen[0] || "");
         return true;
@@ -3655,6 +3805,7 @@ export function setupTikTok() {
         row[field] = String(input.value ?? "").trim();
         renderSkuModalStatus();
         renderTikTokSkuGrid();
+        renderPriceStockCardStatus();
       };
       input.addEventListener("input", updateSku);
       input.addEventListener("change", updateSku);
@@ -4236,6 +4387,9 @@ export function setupTikTok() {
         setPre(createPre, { code: "1", msg: "请选择末级类目(cat_id)" });
         return;
       }
+      syncGoodsDescField();
+      const goodsDescHtml = sanitizeGoodsDesc(goodsDescField?.value ?? "");
+      const goodsDescPayload = getGoodsDescText() ? goodsDescHtml : "";
 
       let extra = {};
       try {
@@ -4245,27 +4399,115 @@ export function setupTikTok() {
         return;
       }
 
-      const payload = {
+      const basePayload = {
         goods_name: document.getElementById("tiktok-goods-name")?.value?.trim(),
         goods_sn: document.getElementById("tiktok-goods-sn")?.value?.trim(),
         ali_seller_sn: document.getElementById("tiktok-ali-seller-sn")?.value?.trim(),
         cat_id: catId,
         goods_brief: document.getElementById("tiktok-goods-brief")?.value?.trim(),
-        package_weight: document.getElementById("tiktok-package-weight")?.value?.trim(),
-        package_weight_unit: document.getElementById("tiktok-package-weight-unit")?.value?.trim(),
-        package_width: document.getElementById("tiktok-package-width")?.value?.trim(),
-        package_height: document.getElementById("tiktok-package-height")?.value?.trim(),
-        package_length: document.getElementById("tiktok-package-length")?.value?.trim(),
+        goods_desc: goodsDescPayload,
+        weight: document.getElementById("tiktok-package-weight")?.value?.trim(),
+        unit: document.getElementById("tiktok-package-weight-unit")?.value?.trim(),
+        wide: document.getElementById("tiktok-package-width")?.value?.trim(),
+        high: document.getElementById("tiktok-package-height")?.value?.trim(),
+        length: document.getElementById("tiktok-package-length")?.value?.trim(),
         tiktok_product_attributes: ensureJsonString(document.getElementById("tiktok-attrs-json")?.value),
         goods_img_json: ensureJsonString(document.getElementById("tiktok-img-json")?.value),
-        easyswitch: 0,
-        sku_stock: document.getElementById("tiktok-sku-stock")?.value?.trim(),
-        sku_price: document.getElementById("tiktok-sku-price")?.value?.trim(),
-        sku_identifier_type: document.getElementById("tiktok-sku-identifier-type")?.value?.trim(),
-        sku_identifier_code: document.getElementById("tiktok-sku-identifier-code")?.value?.trim(),
-        sku_sn: document.getElementById("tiktok-sku-sn")?.value?.trim(),
         ...extra,
       };
+      const extraWarehouse = extra?.sku_warehouse_id ?? extra?.tiktok_warehouse_id;
+      const extraWarehouseId = Array.isArray(extraWarehouse)
+        ? String(extraWarehouse[0] ?? "").trim()
+        : String(extraWarehouse ?? "").trim();
+      const warehouseId = String(
+        document.getElementById("tiktok-sku-warehouse-id")?.value ??
+          warehouseSelect?.value ??
+          extraWarehouseId ??
+          ""
+      ).trim();
+      let payload = { ...basePayload };
+      if (salesModeEnabled) {
+        const combos = getTikTokSalesCombos();
+        if (!salesAttrSelections.size) {
+          setPre(createPre, { code: "1", msg: "请先选择销售属性名称" });
+          return;
+        }
+        if (!combos.length) {
+          setPre(createPre, { code: "1", msg: "请先为销售属性添加值" });
+          return;
+        }
+        const skuRows = combos.map((combo) => {
+          const goods_attrs = normalizeGoodsAttrKey(combo.map((x) => x.goods_attr_id).join(","));
+          const label = combo.map((x) => `${x.specName}: ${x.value}`).join(" / ");
+          const row = skuDraft.get(goods_attrs) || {};
+          return { goods_attrs, label, ...row };
+        });
+        const missingSku = skuRows.find((row) => {
+          const requiredFields = [
+            "product_sn",
+            "product_number",
+            "product_price",
+            "sku_identifier_type",
+            "sku_identifier_code",
+          ];
+          return requiredFields.some((k) => !String(row?.[k] ?? "").trim());
+        });
+        if (missingSku) {
+          setPre(createPre, { code: "1", msg: `请补全 SKU 组合信息：${missingSku.label}` });
+          return;
+        }
+        const invalidSku = skuRows.find(
+          (row) => !validateIdentifierCode(row?.sku_identifier_type, row?.sku_identifier_code)
+        );
+        if (invalidSku) {
+          setPre(createPre, {
+            code: "1",
+            msg: `tiktok_identifier_code 格式不正确，请检查类型与长度规则：${invalidSku.label}`,
+          });
+          return;
+        }
+        const codes = skuRows
+          .map((row) => normalizeIdentifierCode(row?.sku_identifier_code))
+          .filter(Boolean);
+        if (codes.length && new Set(codes).size !== codes.length) {
+          setPre(createPre, { code: "1", msg: "tiktok_identifier_code 不能重复，请检查 SKU 组合" });
+          return;
+        }
+        payload = {
+          ...payload,
+          easyswitch: 1,
+          goods_attr: skuRows.map((r) => r.goods_attrs),
+          product_sn: skuRows.map((r) => r.product_sn),
+          product_number: skuRows.map((r) => r.product_number),
+          product_price: skuRows.map((r) => r.product_price),
+          tiktok_identifier_type: skuRows.map((r) => r.sku_identifier_type),
+          tiktok_identifier_code: skuRows.map((r) => normalizeIdentifierCode(r.sku_identifier_code)),
+        };
+        if (warehouseId) payload.tiktok_warehouse_id = skuRows.map(() => warehouseId);
+      } else {
+        const simpleRow = skuDraft.get(SIMPLE_SKU_KEY) || {};
+        const simpleType = String(simpleRow.sku_identifier_type ?? "").trim();
+        const simpleCode = String(simpleRow.sku_identifier_code ?? "").trim();
+        const simpleSn = String(simpleRow.product_sn ?? "").trim();
+        const simpleStock = String(simpleRow.product_number ?? "").trim();
+        const simplePrice = String(simpleRow.product_price ?? "").trim();
+        payload = {
+          ...payload,
+          easyswitch: 0,
+          sku_stock: simpleStock || document.getElementById("tiktok-sku-stock")?.value?.trim(),
+          sku_price: simplePrice || document.getElementById("tiktok-sku-price")?.value?.trim(),
+          sku_identifier_type: simpleType || document.getElementById("tiktok-sku-identifier-type")?.value?.trim(),
+          sku_identifier_code: normalizeIdentifierCode(
+            simpleCode || document.getElementById("tiktok-sku-identifier-code")?.value
+          ),
+          sku_sn: simpleSn || document.getElementById("tiktok-sku-sn")?.value?.trim(),
+        };
+        if (warehouseId) payload.sku_warehouse_id = warehouseId;
+        if (!validateIdentifierCode(payload.sku_identifier_type, payload.sku_identifier_code)) {
+          setPre(createPre, { code: "1", msg: "sku_identifier_code 格式不正确，请检查类型与长度规则" });
+          return;
+        }
+      }
 
       if (!parseTikTokAttrsJson().length) {
         setPre(createPre, { code: "1", msg: "请先选择并记录至少 1 项属性（在模板里点选即可）" });
@@ -4281,20 +4523,40 @@ export function setupTikTok() {
         "goods_sn",
         "cat_id",
         "goods_brief",
-        "package_weight",
-        "package_weight_unit",
-        "package_width",
-        "package_height",
-        "package_length",
+        "goods_desc",
+        "weight",
+        "unit",
+        "wide",
+        "high",
+        "length",
         "tiktok_product_attributes",
         "goods_img_json",
-        "sku_stock",
-        "sku_price",
-        "sku_identifier_type",
-        "sku_identifier_code",
-        "sku_sn",
       ];
-      const missing = required.filter((k) => !String(payload[k] ?? "").trim());
+      if (salesModeEnabled) {
+        required.push(
+          "goods_attr",
+          "product_sn",
+          "product_number",
+          "product_price",
+          "tiktok_identifier_type",
+          "tiktok_identifier_code"
+        );
+      } else {
+        required.push(
+          "sku_stock",
+          "sku_price",
+          "sku_identifier_type",
+          "sku_identifier_code",
+          "sku_sn"
+        );
+      }
+      const missing = required.filter((k) => {
+        const value = payload[k];
+        if (Array.isArray(value)) {
+          return value.length === 0 || value.some((entry) => !String(entry ?? "").trim());
+        }
+        return !String(value ?? "").trim();
+      });
       if (missing.length) {
         setPre(createPre, { code: "1", msg: `缺少必填：${missing.join(", ")}` });
         return;

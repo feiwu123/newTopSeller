@@ -220,6 +220,25 @@ export function setupShein() {
     }
     return [];
   };
+  const pickCatName = (item) =>
+    item?.cat_name ?? item?.cate_name ?? item?.category_name ?? item?.name ?? item?.label ?? item?.title;
+  const pickCatId = (item) =>
+    item?.cat_id ??
+    item?.cate_id ??
+    item?.category_id ??
+    item?.id ??
+    item?.value ??
+    item?.catId ??
+    item?.cateId ??
+    item?.categoryId;
+  const isSelectedCat = (item) =>
+    item?.is_selected === 1 ||
+    item?.is_selected === "1" ||
+    item?.selected === true ||
+    item?.selected === 1 ||
+    item?.checked === true ||
+    item?.checked === 1;
+
   const buildCatInitialState = (info) => {
     const leafId =
       info?.cat_id ??
@@ -237,11 +256,61 @@ export function setupShein() {
       info?.cat_path_str ??
       "";
     const pathIdsRaw = info?.cat_path_ids ?? info?.cat_ids ?? info?.cat_path_id ?? "";
-    const ids = parseList(pathIdsRaw);
-    const pathParts = parseList(info?.cat_path_parts ?? info?.cat_path_names ?? info?.cat_path_list ?? "");
-    if (leafId && (!ids.length || ids[ids.length - 1] !== String(leafId))) ids.push(String(leafId));
-    if (!leafId && !ids.length && !pathText && !pathParts.length && !typeId) return null;
-    return { ids, leafId: String(leafId || ""), pathText: String(pathText || ""), pathParts, typeId: String(typeId || "") };
+    const idsFromPath = parseList(pathIdsRaw);
+    const pathPartsFromPath = parseList(info?.cat_path_parts ?? info?.cat_path_names ?? info?.cat_path_list ?? "");
+
+    const cateNames = parseList(info?.cate_names ?? info?.cateNames ?? info?.cate_name ?? "");
+    const cateListsRaw = parseMaybeJson(info?.cate_lists ?? info?.cateLists ?? "");
+    const cateLists = Array.isArray(cateListsRaw)
+      ? cateListsRaw
+      : cateListsRaw && typeof cateListsRaw === "object"
+        ? Object.values(cateListsRaw)
+        : [];
+    const idsFromLists = [];
+    const pathPartsFromLists = [];
+    const pickFromLevel = (list, nameHint) => {
+      if (!Array.isArray(list)) return null;
+      if (nameHint) {
+        const hit = list.find((item) => String(pickCatName(item) ?? "").trim() === String(nameHint).trim());
+        if (hit) return hit;
+      }
+      return list.find((item) => isSelectedCat(item)) || null;
+    };
+
+    if (cateLists.length) {
+      if (Array.isArray(cateLists[0])) {
+        cateLists.forEach((levelList, idx) => {
+          const picked = pickFromLevel(levelList, cateNames[idx]);
+          if (!picked) return;
+          const cid = pickCatId(picked);
+          const cname = pickCatName(picked);
+          if (cid != null) idsFromLists.push(String(cid));
+          if (cname != null) pathPartsFromLists.push(String(cname));
+        });
+      } else {
+        cateLists.forEach((item) => {
+          const cid = pickCatId(item);
+          const cname = pickCatName(item);
+          if (cid != null) idsFromLists.push(String(cid));
+          if (cname != null) pathPartsFromLists.push(String(cname));
+        });
+      }
+    }
+
+    const ids = idsFromPath.length ? idsFromPath : idsFromLists;
+    const pathParts =
+      pathPartsFromPath.length ? pathPartsFromPath : cateNames.length ? cateNames : pathPartsFromLists;
+    let finalLeafId = String(leafId || "");
+    if (!finalLeafId && ids.length) finalLeafId = String(ids[ids.length - 1] ?? "");
+    const finalPathText = String(pathText || (pathParts.length ? pathParts.join(" > ") : ""));
+    if (!finalLeafId && !ids.length && !finalPathText && !pathParts.length && !typeId) return null;
+    return {
+      ids,
+      leafId: finalLeafId,
+      pathText: finalPathText,
+      pathParts,
+      typeId: String(typeId || ""),
+    };
   };
 
   const getSheinTemplateAttrs = () => {
@@ -251,8 +320,58 @@ export function setupShein() {
     return [...productAttrs, ...proNumAttrs];
   };
 
+  const isSelectedAttrValue = (item) =>
+    item?.is_selected === 1 ||
+    item?.is_selected === "1" ||
+    item?.is_selected === true ||
+    item?.selected === 1 ||
+    item?.selected === "1" ||
+    item?.selected === true ||
+    item?.checked === 1 ||
+    item?.checked === "1" ||
+    item?.checked === true;
+
+  const getAttrValuesList = (attr) => {
+    const raw =
+      attr?.values_list ??
+      attr?.valuesList ??
+      attr?.value_list ??
+      attr?.valueList ??
+      attr?.values ??
+      "";
+    const parsed = parseMaybeJson(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  };
+
   const getAttrOptions = (attr) => {
     const list = Array.isArray(attr?.attribute_value_info_list) ? attr.attribute_value_info_list : [];
+    const valuesList = getAttrValuesList(attr);
+    const selectedIds = new Set();
+    const selectedNames = new Set();
+    const extraById = new Map();
+    valuesList.forEach((item) => {
+      const id =
+        item?.attribute_value_id ??
+        item?.value_id ??
+        item?.id ??
+        item?.valueId ??
+        item?.attributeValueId ??
+        "";
+      const name =
+        item?.attribute_value ??
+        item?.attribute_value_name ??
+        item?.value ??
+        item?.value_name ??
+        item?.name ??
+        item?.label ??
+        "";
+      const extra = item?.attribute_extra_value ?? item?.extra_value ?? item?.extra ?? "";
+      if (id != null && String(id).trim()) selectedIds.add(String(id).trim());
+      if (name != null && String(name).trim()) selectedNames.add(String(name).trim());
+      if (id != null && String(id).trim() && extra != null && String(extra).trim()) {
+        extraById.set(String(id).trim(), String(extra).trim());
+      }
+    });
     return list
       .map((item) => {
         const label =
@@ -276,7 +395,11 @@ export function setupShein() {
         return {
           id: String(fallback || "").trim(),
           label: String(label || fallback || "").trim(),
-          extraValue: String(extra || "").trim(),
+          extraValue: String(extraById.get(String(fallback || "").trim()) || extra || "").trim(),
+          isSelected:
+            isSelectedAttrValue(item) ||
+            (fallback != null && selectedIds.has(String(fallback).trim())) ||
+            (label && selectedNames.has(String(label).trim())),
         };
       })
       .filter((opt) => opt.label);
@@ -850,6 +973,68 @@ export function setupShein() {
     "4": { text: "\u81ea\u5b9a\u4e49", icon: "fa-sliders", chip: "text-amber-800 bg-amber-50 border-amber-200" },
   };
 
+  const applyAttrSelectionsFromTemplate = () => {
+    if (!sheinAttrList.length) return;
+    let changed = false;
+    sheinAttrList.forEach((attr) => {
+      if (sheinAttrSelections.has(attr.key)) return;
+      if (attr.mode === "1" || attr.mode === "3") {
+        const picked = attr.options
+          .filter((opt) => opt.isSelected)
+          .map((opt) => String(opt.label || "").trim())
+          .filter(Boolean);
+        if (!picked.length) return;
+        sheinAttrSelections.set(attr.key, { mode: attr.mode, values: attr.mode === "3" ? [picked[0]] : picked });
+        changed = true;
+        return;
+      }
+      if (attr.mode === "0") {
+        const valuesList = getAttrValuesList(attr.raw);
+        if (!valuesList.length) return;
+        const candidate = valuesList.find((v) => String(v?.attribute_extra_value ?? "").trim()) || valuesList[0];
+        const value =
+          candidate?.attribute_extra_value ??
+          candidate?.extra_value ??
+          candidate?.attribute_value ??
+          candidate?.attribute_value_name ??
+          "";
+        if (!String(value ?? "").trim()) return;
+        sheinAttrSelections.set(attr.key, { mode: attr.mode, value: String(value).trim() });
+        changed = true;
+        return;
+      }
+      if (attr.mode === "4") {
+        const valuesList = getAttrValuesList(attr.raw);
+        if (!valuesList.length) return;
+        const idToLabel = new Map(attr.options.map((opt) => [String(opt.id ?? ""), String(opt.label ?? "")]));
+        const rows = valuesList
+          .map((v) => {
+            const id =
+              v?.attribute_value_id ??
+              v?.value_id ??
+              v?.id ??
+              v?.valueId ??
+              v?.attributeValueId ??
+              "";
+            const name =
+              v?.attribute_value ??
+              v?.attribute_value_name ??
+              idToLabel.get(String(id ?? "")) ??
+              v?.value ??
+              v?.name ??
+              "";
+            const value = v?.attribute_extra_value ?? v?.extra_value ?? v?.extra ?? "";
+            return { name: String(name ?? "").trim(), value: String(value ?? "").trim() };
+          })
+          .filter((row) => row.name || row.value);
+        if (!rows.length) return;
+        sheinAttrSelections.set(attr.key, { mode: attr.mode, rows });
+        changed = true;
+      }
+    });
+    if (changed) syncSheinOthers();
+  };
+
   const renderSheinTemplateForm = () => {
     if (!templateForm) return;
     setTemplateVisibility(Boolean(templateRes));
@@ -871,6 +1056,7 @@ export function setupShein() {
       return { key, id: String(rawId || "").trim(), name, mode, options, raw: attr };
     });
     sheinAttrByKey = new Map(sheinAttrList.map((item) => [item.key, item]));
+    applyAttrSelectionsFromTemplate();
 
     const cardHtml = sheinAttrList
       .map((attr) => {
@@ -1616,6 +1802,31 @@ export function setupShein() {
     updateStepChecks();
   };
 
+  const openAllSteps = () => {
+    sheinStep = 4;
+    const panels = [panel1, panel2, panel3, panel4];
+    panels.forEach((p) => {
+      if (!p) return;
+      p.hidden = false;
+      p.classList.remove("hidden");
+    });
+    const actionGroups = [
+      [next1],
+      [back2, next2],
+      [back3, next3],
+      [back4],
+    ];
+    actionGroups.forEach((group, idx) => {
+      const on = idx === actionGroups.length - 1;
+      group.forEach((btn) => {
+        if (!btn) return;
+        btn.hidden = !on;
+        btn.classList.toggle("hidden", !on);
+      });
+    });
+    updateStepChecks();
+  };
+
   const renderImagePreview = () => {
     renderSheinImageCards();
     syncSheinImageJson();
@@ -1989,10 +2200,14 @@ export function setupShein() {
     if (!info || !id) return;
     setSheinEditingId(id);
 
+    const cateListsRaw = parseMaybeJson(info?.cate_lists ?? info?.cateLists ?? "");
+    const cateLists =
+      Array.isArray(cateListsRaw) && Array.isArray(cateListsRaw[0]) ? cateListsRaw : null;
     const catState = buildCatInitialState(info);
     if (catState) {
       await buildCategorySelector("shein-cat-select", "shein", "shein-cat-id", {
         initialState: catState,
+        levels: cateLists,
         restore: false,
         persist: false,
       });
@@ -2000,7 +2215,7 @@ export function setupShein() {
     const catId = String(catState?.leafId ?? info?.cat_id ?? info?.catId ?? info?.category_id ?? "").trim();
     const typeId = String(catState?.typeId ?? info?.type_id ?? info?.typeId ?? "").trim();
     const tplId = typeId || catId;
-    if (tplId) await fetchTemplate(tplId, { silent: true });
+    if (tplId) await fetchTemplate(tplId, { silent: true, goodsId: id });
 
     setInputValue(goodsNameInput, info?.goods_name ?? info?.goodsName ?? info?.title ?? "");
     setInputValue(goodsSnInput, info?.goods_sn ?? info?.goodsSn ?? info?.sn ?? "");
@@ -2161,7 +2376,7 @@ export function setupShein() {
     syncSpecDefines();
     renderSheinTemplateForm();
     renderImagePreview();
-    setStep(1);
+    openAllSteps();
   };
 
   const loadSheinInfoForEdit = async (goodsId) => {
@@ -2190,6 +2405,7 @@ export function setupShein() {
     const tid = String(typeId ?? "").trim();
     if (!tid) return;
     const silent = opts?.silent === true;
+    const goodsId = String(opts?.goodsId ?? "0").trim() || "0";
     if (templateBtn) templateBtn.disabled = true;
     // keep silent
     if (templatePre) templatePre.textContent = "";
@@ -2199,7 +2415,7 @@ export function setupShein() {
     sheinAttrByKey = new Map();
     if (templateForm) templateForm.innerHTML = '<div class=\"text-xs text-slate-400\">\u52a0\u8f7d\u4e2d...</div>';
     try {
-      const res = await postAuthedJson("/api/shein/getAttributeTemplate", { goods_id: "0", type_id: tid });
+      const res = await postAuthedJson("/api/shein/getAttributeTemplate", { goods_id: goodsId, type_id: tid });
       if (String(res?.code) === "2") {
         clearAuth();
         window.location.href = "/login.html";

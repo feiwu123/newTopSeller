@@ -655,6 +655,7 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
   const restoreEnabled = opts?.restore !== false;
   const persistEnabled = opts?.persist !== false;
   const initialState = opts?.initialState && typeof opts.initialState === "object" ? opts.initialState : null;
+  const prefillLevels = Array.isArray(opts?.levels) ? opts.levels : null;
   let pathClickBound = false;
   if (!persistEnabled) {
     try {
@@ -799,6 +800,11 @@ async function buildCategorySelector(rootId, platform, outId, opts = {}) {
   if (saved?.pathParts?.length) setPath(saved.pathParts);
 
   async function fetchLevel(parentCatId) {
+    if (prefillLevels) {
+      const idx = levels.length;
+      const nextLevel = prefillLevels[idx];
+      if (Array.isArray(nextLevel) && nextLevel.length) return nextLevel;
+    }
     const res = await postAuthedJson(`/api/${platform}/get_select_category_pro`, { cat_id: parentCatId });
     if (String(res?.code) === "2") {
       clearAuth();
