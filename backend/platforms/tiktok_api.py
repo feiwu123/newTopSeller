@@ -82,6 +82,26 @@ def tiktok_insert():
         return jsonify({"code": "1", "msg": "upstream request failed", "data": {}}), 200
 
 
+@tiktok_bp.post("/api/tiktok/update")
+def tiktok_update():
+    payload = _json_payload()
+    try:
+        _, data = post_json("tiktok.php", "update", payload)
+        return jsonify(data), 200
+    except requests.RequestException:
+        return jsonify({"code": "1", "msg": "upstream request failed", "data": {}}), 200
+
+
+@tiktok_bp.post("/api/tiktok/info")
+def tiktok_info():
+    payload = _json_payload()
+    try:
+        _, data = post_json("tiktok.php", "info", payload)
+        return jsonify(data), 200
+    except requests.RequestException:
+        return jsonify({"code": "1", "msg": "upstream request failed", "data": {}}), 200
+
+
 def _upload_file(action: str):
     user = (request.form.get("user") or "").strip()
     token = (request.form.get("token") or "").strip()
@@ -125,4 +145,3 @@ def tiktok_upload_attrs_img():
 @tiktok_bp.post("/api/tiktok/upload_tiktok_img")
 def tiktok_upload_tiktok_img():
     return _upload_file("upload_tiktok_img")
-

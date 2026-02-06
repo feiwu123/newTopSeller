@@ -1719,7 +1719,7 @@
               <div class="flex items-center gap-2 min-w-0">
                 <div class="min-w-0">
                   <h2 class="text-base font-black text-slate-900 truncate">TikTok &#x5546;&#x54C1;&#x4E0A;&#x4F20;</h2>
-                  <div class="text-xs text-slate-400 mt-0.5">&#x6309;&#x6B65;&#x9AA4;&#x586B;&#x5199;&#xFF1A;&#x7C7B;&#x76EE; &#x2192; &#x6A21;&#x677F;&#x5C5E;&#x6027; &#x2192; &#x4E0A;&#x4F20;&#x56FE;&#x7247; &#x2192; &#x5546;&#x54C1;&#x63CF;&#x8FF0; &#x2192; &#x65B0;&#x589E;&#x5546;&#x54C1;</div>
+                  <div id="tiktok-upload-mode-hint" class="text-xs text-slate-400 mt-0.5">&#x6309;&#x6B65;&#x9AA4;&#x586B;&#x5199;&#xFF1A;&#x7C7B;&#x76EE; &#x2192; &#x6A21;&#x677F;&#x5C5E;&#x6027; &#x2192; &#x4E0A;&#x4F20;&#x56FE;&#x7247; &#x2192; &#x5546;&#x54C1;&#x63CF;&#x8FF0; &#x2192; &#x65B0;&#x589E;&#x5546;&#x54C1;</div>
                 </div>
               </div>
               <div class="flex items-center gap-2">
@@ -1792,7 +1792,7 @@
                   <div class="flex items-center gap-3">
                     <span id="tiktok-step-5-dot" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-black">5</span>
                     <div class="min-w-0">
-                      <div class="text-sm font-semibold text-slate-800">&#x65B0;&#x589E;&#x5546;&#x54C1;</div>
+                      <div id="tiktok-step-5-title" class="text-sm font-semibold text-slate-800">&#x65B0;&#x589E;&#x5546;&#x54C1;</div>
                       <div id="tiktok-step-5-hint" class="text-[11px] text-slate-400 truncate">&#x586B;&#x5199;&#x5B57;&#x6BB5;&#x5E76;&#x63D0;&#x4EA4;</div>
                     </div>
                     <i id="tiktok-step-5-check" class="fas fa-check-circle text-emerald-600 hidden"></i>
@@ -1841,79 +1841,148 @@
                 </div>
                 <div id="tiktok-template-form-msg" class="hidden text-xs bg-slate-50 border border-slate-200 text-slate-600 px-3 py-2 rounded-xl"></div>
                 <div id="tiktok-attr-summary" class="text-[11px] text-slate-400"></div>
-                <div id="tiktok-template-form" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
-                <div id="tiktok-sku-core-block" class="bg-white border border-slate-100 rounded-2xl p-4 space-y-3">
-                  <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                    <i class="fas fa-barcode text-slate-500"></i>
-                    <span>SKU &#x6838;&#x5FC3;&#x5B57;&#x6BB5;</span>
+                <div id="tiktok-brand-block" class="hidden">
+                  <div
+                    id="tiktok-brand-card"
+                    class="relative overflow-hidden rounded-3xl border-2 border-accent/20 bg-accent/5 p-5 pl-6 hover:border-accent/30 transition-colors"
+                  >
+                    <button id="tiktok-brand-trigger" type="button" class="w-full text-left">
+                      <div class="absolute left-2 top-4 bottom-4 w-1 rounded-full bg-rose-500"></div>
+                      <div class="pl-2 space-y-2">
+                        <div class="flex items-start gap-2 text-base font-black text-slate-900">
+                          <i class="fas fa-certificate text-slate-600 mt-0.5"></i>
+                          <span>&#x54C1;&#x724C;&#x9009;&#x62E9;</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400 flex items-center gap-2">
+                          <i class="fas fa-circle-info"></i>
+                          <span>&#x70B9;&#x51FB;&#x5361;&#x7247;&#x9009;&#x62E9;&#x54C1;&#x724C;&#xFF0C;&#x53EF;&#x81EA;&#x5B9A;&#x4E49;&#x54C1;&#x724C;&#x540D;&#x79F0;</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                          <span id="tiktok-brand-trigger-label" class="text-sm text-slate-700">&#x672A;&#x9009;&#x62E9;&#xFF0C;&#x70B9;&#x51FB;&#x5361;&#x7247;</span>
+                          <div class="flex items-center gap-2">
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-black">&#x5FC5;&#x586B;</span>
+                            <span
+                              id="tiktok-brand-selected-chip"
+                              class="hidden text-[10px] px-2 py-0.5 rounded-full bg-white border border-rose-200 text-rose-600 font-black"
+                              >&#x5DF2;&#x9009;</span
+                            >
+                            <span
+                              id="tiktok-brand-status"
+                              class="text-[11px] px-3 py-1 rounded-full border font-black text-slate-700 bg-white border-slate-200"
+                              >&#x672A;&#x586B;&#x5199;</span
+                            >
+                            <i class="fas fa-chevron-right text-slate-400"></i>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
                   </div>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" data-sku-core-grid="1">
-                    <div class="space-y-1" data-sku-core-field="tiktok-sku-identifier-code">
-                      <div class="flex items-center gap-2 text-[11px] font-semibold text-slate-600" data-sku-core-label="1">
-                        <span>&#21830;&#21697;&#35782;&#21035;&#30721;</span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-50 border border-rose-100 text-rose-600 font-black">&#24517;&#22635;</span>
-                      </div>
-                      <div class="flex items-center rounded-lg border border-slate-200 bg-white overflow-hidden" data-sku-identifier-group="1">
-                        <select
-                          id="tiktok-sku-identifier-type"
-                          class="px-2.5 py-2 text-xs bg-white border-0 focus:ring-0 focus:outline-none"
-                          aria-label="&#35782;&#21035;&#30721;&#31867;&#22411;"
-                        >
-                          <option value="GTIN">GTIN</option>
-                          <option value="EAN">EAN</option>
-                          <option value="UPC">UPC</option>
-                          <option value="ISBN">ISBN</option>
-                          <option value="JAN">JAN</option>
-                        </select>
-                        <div class="w-px h-6 bg-slate-200"></div>
-                        <input
-                          id="tiktok-sku-identifier-code"
-                          class="flex-1 min-w-[140px] px-3 py-2 text-xs bg-white border-0 focus:ring-0 focus:outline-none"
-                          placeholder=""
-                          aria-label="&#21830;&#21697;&#35782;&#21035;&#30721;"
-                        />
-                      </div>
-                    </div>
-                    <div class="space-y-1" data-sku-core-field="tiktok-sku-price">
-                      <div class="flex items-center gap-2 text-[11px] font-semibold text-slate-600" data-sku-core-label="1">
-                        <span>&#x96F6;&#x552E;&#x4EF7;</span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-50 border border-rose-100 text-rose-600 font-black">&#24517;&#22635;</span>
-                      </div>
-                      <input
-                        id="tiktok-sku-price"
-                        class="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                        placeholder=""
-                        aria-label="&#x96F6;&#x552E;&#x4EF7;"
-                      />
-                    </div>
-                    <div class="space-y-1" data-sku-core-field="tiktok-sku-stock">
-                      <div class="flex items-center gap-2 text-[11px] font-semibold text-slate-600" data-sku-core-label="1">
-                        <span>&#x5E93;&#x5B58;&#x6570;&#x91CF;</span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-50 border border-rose-100 text-rose-600 font-black">&#24517;&#22635;</span>
-                      </div>
-                      <input
-                        id="tiktok-sku-stock"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                        placeholder=""
-                        aria-label="&#x5E93;&#x5B58;&#x6570;&#x91CF;"
-                      />
-                    </div>
-                    <div class="space-y-1" data-sku-core-field="tiktok-sku-sn">
-                      <div class="flex items-center gap-2 text-[11px] font-semibold text-slate-600" data-sku-core-label="1">
-                        <span>&#x5356;&#x5BB6; SKU</span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-50 border border-rose-100 text-rose-600 font-black">&#24517;&#22635;</span>
-                      </div>
-                      <input
-                        id="tiktok-sku-sn"
-                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                        placeholder=""
-                        aria-label="&#x5356;&#x5BB6; SKU"
-                      />
-                    </div>
-                  </div>
-                  <div id="tiktok-sales-attr-block" class="space-y-3"></div>
-                  <input id="tiktok-sales-attr-file" type="file" accept="image/*" class="hidden" multiple />
+                  <input id="tiktok-brand-id" type="hidden" value="" />
                 </div>
+                <div
+                  id="tiktok-brand-dropdown"
+                  class="fixed inset-0 z-[70] hidden items-center justify-center bg-slate-900/40 px-4 py-6"
+                >
+                  <div class="relative w-full max-w-3xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                      <div class="min-w-0">
+                        <div class="text-sm font-black text-slate-900">&#x54C1;&#x724C;&#x9009;&#x62E9;</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">
+                          &#x70B9;&#x51FB;&#x4E0B;&#x9762;&#x7684;&#x54C1;&#x724C;&#x5361;&#x7247;&#x5B8C;&#x6210;&#x9009;&#x62E9;&#xFF0C;&#x652F;&#x6301;&#x81EA;&#x5B9A;&#x4E49;&#x54C1;&#x724C;&#x3002;
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span id="tiktok-brand-selected-hint" class="hidden text-[11px] text-slate-400">&#x5DF2;&#x9009; 0</span>
+                        <button
+                          id="tiktok-brand-clear"
+                          type="button"
+                          class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-600 hover:bg-slate-50"
+                        >
+                          &#x6E05;&#x7A7A;
+                        </button>
+                        <button
+                          id="tiktok-brand-close"
+                          type="button"
+                          class="px-2 py-1 rounded-lg bg-slate-900 text-[11px] text-white hover:bg-slate-800"
+                        >
+                          &#x5173;&#x95ED;
+                        </button>
+                      </div>
+                    </div>
+                    <div class="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
+                      <div class="grid grid-cols-1 sm:grid-cols-[1fr,auto] gap-2">
+                        <input
+                          id="tiktok-brand-search-name"
+                          class="px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
+                          placeholder="&#x8F93;&#x5165;&#x54C1;&#x724C;&#x540D;&#x7B5B;&#x9009;/&#x641C;&#x7D22;"
+                        />
+                        <button
+                          id="tiktok-brand-search"
+                          type="button"
+                          class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          <i class="fas fa-magnifying-glass mr-1"></i>&#x641C;&#x7D22;
+                        </button>
+                      </div>
+                      <select
+                        id="tiktok-brand-results"
+                        class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
+                      >
+                        <option value="">&#x9009;&#x62E9;&#x54C1;&#x724C;(&#x6A21;&#x677F;&#x8FD4;&#x56DE;)</option>
+                      </select>
+                      <div class="flex items-center justify-between gap-2">
+                        <div class="text-[11px] text-slate-400">&#x6A21;&#x677F;&#x8FD4;&#x56DE;/&#x641C;&#x7D22;&#x7ED3;&#x679C;</div>
+                        <button
+                          id="tiktok-brand-reset"
+                          type="button"
+                          class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-600 hover:bg-slate-50"
+                        >
+                          &#x91CD;&#x7F6E;&#x54C1;&#x724C;
+                        </button>
+                      </div>
+                      <div id="tiktok-brand-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                      <div id="tiktok-brand-summary" class="text-[11px] text-slate-400"></div>
+                      <div class="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2">
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="text-xs font-semibold text-slate-600">&#x81EA;&#x5B9A;&#x4E49;&#x54C1;&#x724C;</div>
+                          <button
+                            id="tiktok-brand-create-toggle"
+                            type="button"
+                            class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] text-slate-600 hover:bg-slate-50"
+                          >
+                            <i class="fas fa-plus mr-1"></i>&#x65B0;&#x589E;
+                          </button>
+                        </div>
+                        <div id="tiktok-brand-create-panel" class="hidden space-y-2">
+                          <input
+                            id="tiktok-brand-create-name"
+                            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
+                            placeholder="&#x8F93;&#x5165;&#x65B0;&#x54C1;&#x724C;&#x540D;&#x79F0;"
+                          />
+                          <div class="flex items-center gap-2">
+                            <button
+                              id="tiktok-brand-create"
+                              type="button"
+                              class="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
+                            >
+                              &#x521B;&#x5EFA;
+                            </button>
+                            <button
+                              id="tiktok-brand-create-cancel"
+                              type="button"
+                              class="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                            >
+                              &#x53D6;&#x6D88;
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div id="tiktok-template-form" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+                <div id="tiktok-sales-attr-block" class="space-y-3"></div>
+                <input id="tiktok-sales-attr-file" type="file" accept="image/*" class="hidden" multiple />
                 <label class="inline-flex items-center gap-3 text-[11px] text-slate-500">
                   <div class="relative">
                     <input id="tiktok-attr-entry-toggle" type="checkbox" class="sr-only peer" />
